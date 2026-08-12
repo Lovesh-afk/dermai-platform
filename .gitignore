@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.db
+.pytest_cache/
+
+# Node
+node_modules/
+.next/
+out/
+
+# Env
+.env
+*.env.local
+
+# Datasets (never commit raw medical image data)
+datasets/raw/
+datasets/processed/
+*.h5
+*.pt
+*.onnx
+
+# OS
+.DS_Store
+
+# Terraform
+*.tfstate
+*.tfstate.backup
+.terraform/
