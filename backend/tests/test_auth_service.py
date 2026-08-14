@@ -57,12 +57,12 @@ def test_authenticate_and_issue_tokens_success(db_session):
     payload = UserRegister(email="p3@example.com", password="strongpass123", full_name="P Three")
     auth_service.register_user(db_session, payload)
 
-    user = auth_service.authenticate_user(db_session, UserLogin(email="p3@example.com", password="strongpass123"))
-    tokens = auth_service.issue_tokens(db_session, user)
+    result = auth_service.authenticate_user(db_session, UserLogin(email="p3@example.com", password="strongpass123"))
 
-    assert tokens.access_token
-    assert tokens.refresh_token
-    assert tokens.token_type == "bearer"
+    assert result.mfa_required is False
+    assert result.access_token
+    assert result.refresh_token
+    assert result.token_type == "bearer"
 
 
 def test_refresh_access_token_with_invalid_token_raises(db_session):

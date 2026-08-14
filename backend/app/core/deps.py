@@ -1,6 +1,8 @@
 """Shared FastAPI dependencies: DB session passthrough + current-user
 resolution from the JWT. Import these in endpoints, never duplicate
 the decode logic per-endpoint."""
+import uuid
+
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
@@ -23,7 +25,12 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
     if not payload or payload.get("type") != "access":
         raise credentials_error
 
-    user = db.get(User, payload.get("sub"))
+    try:
+        user_id = uuid.UUID(payload.get("sub"))
+    except (TypeError, ValueError):
+        raise credentials_error
+
+    user = db.get(User, user_id)
     if not user or not user.is_active:
         raise credentials_error
     return user

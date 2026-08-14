@@ -19,6 +19,24 @@ class InvalidCredentialsError(AppError):
     pass
 
 
+class MFARequiredError(AppError):
+    """Raised by the service layer when password is correct but MFA
+    verification is still needed — the API layer turns this into a
+    200 with an mfa_pending_token rather than an error status, since
+    it's an expected step in a successful login, not a failure."""
+    def __init__(self, mfa_pending_token: str):
+        self.mfa_pending_token = mfa_pending_token
+        super().__init__("MFA verification required")
+
+
+class InvalidMFACodeError(AppError):
+    pass
+
+
+class InvalidResetTokenError(AppError):
+    pass
+
+
 class PermissionDeniedError(AppError):
     pass
 
