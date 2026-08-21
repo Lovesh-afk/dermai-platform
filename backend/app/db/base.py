@@ -10,4 +10,5 @@ from app.models.password_reset_token import PasswordResetToken  # noqa
 from app.models.patient import Patient  # noqa
 from app.models.role import Role  # noqa
 from app.models.session import UserSession  # noqa
+from app.models.skin_image import SkinImage  # noqa
 from app.models.user import User  # noqa

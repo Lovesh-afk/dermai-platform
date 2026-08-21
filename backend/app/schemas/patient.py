@@ -1,6 +1,7 @@
 from datetime import date
 
 from pydantic import BaseModel, Field
+from app.schemas.common import UUIDStr
 
 
 class PatientProfileCreate(BaseModel):
@@ -14,7 +15,7 @@ class PatientProfileCreate(BaseModel):
 
 
 class PatientProfileOut(PatientProfileCreate):
-    id: str
-    user_id: str
+    id: UUIDStr
+    user_id: UUIDStr
 
     model_config = {"from_attributes": True}

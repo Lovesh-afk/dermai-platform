@@ -1,8 +1,9 @@
 from pydantic import BaseModel, Field
+from app.schemas.common import UUIDStr
 
 
 class DoctorProfileCreate(BaseModel):
-    hospital_id: str
+    hospital_id: UUIDStr
     specialization: str = Field(default="Dermatology", max_length=255)
     license_number: str = Field(max_length=100)
     years_experience: int | None = None
@@ -11,9 +12,9 @@ class DoctorProfileCreate(BaseModel):
 
 
 class DoctorProfileOut(BaseModel):
-    id: str
-    user_id: str
-    hospital_id: str
+    id: UUIDStr
+    user_id: UUIDStr
+    hospital_id: UUIDStr
     specialization: str
     license_number: str
     years_experience: int | None = None

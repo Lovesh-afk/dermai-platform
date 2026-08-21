@@ -1,5 +1,6 @@
 import uuid
 
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.exceptions import NotFoundError
@@ -40,3 +41,18 @@ def _hospital_id_for_patient(db: Session, patient: Patient) -> uuid.UUID:
 
     user = db.get(User, patient.user_id)
     return user.hospital_id
+
+
+def list_records_for_patient(db: Session, patient_id: uuid.UUID) -> list[MedicalRecord]:
+    return list(
+        db.execute(
+            select(MedicalRecord).where(MedicalRecord.patient_id == patient_id).order_by(MedicalRecord.created_at.desc())
+        ).scalars().all()
+    )
+
+
+def get_record_by_id(db: Session, record_id: uuid.UUID) -> MedicalRecord:
+    record = db.get(MedicalRecord, record_id)
+    if not record:
+        raise NotFoundError("Medical record not found")
+    return record
