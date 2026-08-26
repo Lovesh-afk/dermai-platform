@@ -16,6 +16,13 @@ class AppointmentCancel(BaseModel):
     cancellation_reason: str | None = Field(default=None, max_length=500)
 
 
+class AppointmentStatusUpdate(BaseModel):
+    """Doctor-only transition — e.g. pending -> confirmed -> completed,
+    or marking a no_show. Cancellation stays on its own endpoint
+    (/cancel) since patients can also cancel and it needs a reason."""
+    status: AppointmentStatus
+
+
 class AppointmentOut(BaseModel):
     id: UUIDStr
     hospital_id: UUIDStr

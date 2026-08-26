@@ -7,11 +7,11 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_user
-from app.core.exceptions import NotFoundError
+from app.core.exceptions import NotFoundError, PermissionDeniedError
 from app.db.session import get_db
 from app.models.user import User
-from app.schemas.appointment import AppointmentCancel, AppointmentCreate, AppointmentOut
-from app.services import appointment_service, patient_service
+from app.schemas.appointment import AppointmentCancel, AppointmentCreate, AppointmentOut, AppointmentStatusUpdate
+from app.services import appointment_service, doctor_service, patient_service
 from app.services.appointment_service import DoctorUnavailableError, SlotConflictError
 
 router = APIRouter(prefix="/appointments", tags=["appointments"])
@@ -42,3 +42,18 @@ def cancel_appointment(appointment_id: str, payload: AppointmentCancel, current_
         )
     except NotFoundError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+
+
+@router.patch("/{appointment_id}/status", response_model=AppointmentOut)
+def update_appointment_status(appointment_id: str, payload: AppointmentStatusUpdate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    try:
+        doctor = doctor_service.get_doctor_by_user_id(db, current_user.id)
+    except NotFoundError:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only doctors can update an appointment's status")
+
+    try:
+        return appointment_service.update_appointment_status(db, uuid.UUID(appointment_id), payload.status, doctor)
+    except NotFoundError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except PermissionDeniedError as e:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))

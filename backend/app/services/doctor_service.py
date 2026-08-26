@@ -7,7 +7,7 @@ from app.core.exceptions import AlreadyExistsError, NotFoundError
 from app.models.doctor import Doctor
 from app.models.hospital import Hospital
 from app.models.user import User
-from app.schemas.doctor import DoctorProfileCreate
+from app.schemas.doctor import DoctorProfileCreate, DoctorProfileUpdate
 from app.services.audit_service import log_audit_event
 
 
@@ -49,6 +49,28 @@ def get_doctor_by_id(db: Session, doctor_id: uuid.UUID) -> Doctor:
     doctor = db.get(Doctor, doctor_id)
     if not doctor:
         raise NotFoundError("Doctor not found")
+    return doctor
+
+
+def get_doctor_by_user_id(db: Session, user_id: uuid.UUID) -> Doctor:
+    doctor = db.execute(select(Doctor).where(Doctor.user_id == user_id)).scalar_one_or_none()
+    if not doctor:
+        raise NotFoundError("No doctor profile found for this user")
+    return doctor
+
+
+def update_doctor_profile(db: Session, doctor: Doctor, payload: DoctorProfileUpdate) -> Doctor:
+    updates = payload.model_dump(exclude_unset=True)
+    for field, value in updates.items():
+        setattr(doctor, field, value)
+    db.add(doctor)
+    db.commit()
+    db.refresh(doctor)
+
+    log_audit_event(
+        db, action="doctor_profile.update", user_id=doctor.user_id, hospital_id=doctor.hospital_id,
+        resource_type="Doctor", resource_id=str(doctor.id), metadata={"fields": list(updates.keys())},
+    )
     return doctor
 
 

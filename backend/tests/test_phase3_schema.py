@@ -190,20 +190,42 @@ def test_create_medical_record_success(db_session):
     hospital = _seed_hospital_and_roles(db_session)
     patient, doctor = _make_patient_and_doctor(db_session, hospital)
 
+    # Doctor needs a shared appointment with the patient before they're
+    # allowed to write a record for them (RBAC — see get_patient_for_doctor)
+    slot = datetime.now(timezone.utc) + timedelta(days=1)
+    appointment_service.book_appointment(db_session, patient, AppointmentCreate(doctor_id=str(doctor.id), scheduled_at=slot))
+
     record = medical_record_service.create_medical_record(
         db_session,
-        MedicalRecordCreate(patient_id=str(patient.id), doctor_id=str(doctor.id), diagnosis="Mild eczema", notes="Prescribed moisturizer"),
-        created_by_user_id=doctor.user_id,
+        MedicalRecordCreate(patient_id=str(patient.id), diagnosis="Mild eczema", notes="Prescribed moisturizer"),
+        doctor=doctor,
     )
 
     assert record.diagnosis == "Mild eczema"
     assert record.hospital_id == hospital.id
+    assert record.doctor_id == doctor.id
 
 
 def test_create_medical_record_unknown_patient_raises(db_session):
+    hospital = _seed_hospital_and_roles(db_session)
+    _, doctor = _make_patient_and_doctor(db_session, hospital)
+
     with pytest.raises(NotFoundError):
         medical_record_service.create_medical_record(
-            db_session, MedicalRecordCreate(patient_id=str(uuid.uuid4())), created_by_user_id=uuid.uuid4()
+            db_session, MedicalRecordCreate(patient_id=str(uuid.uuid4())), doctor=doctor
+        )
+
+
+def test_create_medical_record_without_shared_appointment_raises(db_session):
+    from app.core.exceptions import PermissionDeniedError
+
+    hospital = _seed_hospital_and_roles(db_session)
+    patient, doctor = _make_patient_and_doctor(db_session, hospital)
+    # No appointment booked between them this time
+
+    with pytest.raises(PermissionDeniedError):
+        medical_record_service.create_medical_record(
+            db_session, MedicalRecordCreate(patient_id=str(patient.id), diagnosis="Should not be allowed"), doctor=doctor
         )
 
 

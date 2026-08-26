@@ -4,7 +4,7 @@ from datetime import datetime
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.core.exceptions import AppError, NotFoundError
+from app.core.exceptions import AppError, NotFoundError, PermissionDeniedError
 from app.models.appointment import Appointment, AppointmentStatus
 from app.models.doctor import Doctor
 from app.models.patient import Patient
@@ -85,3 +85,32 @@ def list_appointments_for_patient(db: Session, patient_id: uuid.UUID) -> list[Ap
 
 def list_appointments_for_doctor(db: Session, doctor_id: uuid.UUID) -> list[Appointment]:
     return list(db.execute(select(Appointment).where(Appointment.doctor_id == doctor_id)).scalars().all())
+
+
+def update_appointment_status(db: Session, appointment_id: uuid.UUID, new_status: AppointmentStatus, doctor: Doctor) -> Appointment:
+    """Doctor-only transition (confirm/complete/no-show). Cancellation
+    has its own endpoint since either party can do it and it needs a
+    reason — this one is specifically the doctor managing their queue."""
+    appointment = db.get(Appointment, appointment_id)
+    if not appointment:
+        raise NotFoundError("Appointment not found")
+    if appointment.doctor_id != doctor.id:
+        raise PermissionDeniedError("This appointment does not belong to you")
+
+    appointment.status = new_status
+    db.add(appointment)
+    db.commit()
+    db.refresh(appointment)
+
+    log_audit_event(
+        db, action="appointment.status_update", user_id=doctor.user_id, hospital_id=appointment.hospital_id,
+        resource_type="Appointment", resource_id=str(appointment.id), metadata={"new_status": new_status.value},
+    )
+    return appointment
+
+
+def get_appointment_by_id(db: Session, appointment_id: uuid.UUID) -> Appointment:
+    appointment = db.get(Appointment, appointment_id)
+    if not appointment:
+        raise NotFoundError("Appointment not found")
+    return appointment
