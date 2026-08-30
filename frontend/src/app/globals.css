@@ -1,3 +1,38 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+:root {
+  --font-display: "Fraunces", serif;
+  --font-body: "Public Sans", sans-serif;
+  --font-mono: "IBM Plex Mono", monospace;
+}
+
+* {
+  scrollbar-width: thin;
+}
+
+body {
+  font-feature-settings: "ss01" on;
+}
+
+/* Visible keyboard focus everywhere — never remove outlines without a replacement */
+:focus-visible {
+  outline: 2px solid #2F5D50;
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Subtle dot-grid texture used behind the sidebar — a quiet nod to
+   skin/tissue texture without being literal. Signature element. */
+.texture-dots {
+  background-image: radial-gradient(circle, rgba(47, 93, 80, 0.10) 1px, transparent 1px);
+  background-size: 16px 16px;
+}
