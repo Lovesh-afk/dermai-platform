@@ -27,3 +27,10 @@ class HospitalOut(BaseModel):
     is_active: bool
 
     model_config = {"from_attributes": True}
+
+
+class HospitalUpdate(BaseModel):
+    """All fields optional — only what's provided gets updated."""
+    name: str | None = Field(default=None, min_length=1, max_length=255)
+    subscription_tier: str | None = Field(default=None, max_length=50)
+    is_active: bool | None = None

@@ -6,10 +6,12 @@ import { useRequireAuth } from "@/lib/useRequireAuth";
 import { patientApi, doctorApi, ApiError } from "@/lib/api";
 import { Spinner } from "@/components/ui";
 
-/** Figures out where a logged-in user actually belongs — the patient
- * dashboard, the doctor dashboard, or onboarding if they haven't set
- * up either profile yet — and redirects there. This is the one place
- * that logic lives, so /login and /register don't need to duplicate it. */
+/** Figures out where a logged-in user actually belongs — the admin
+ * dashboard (SUPER_ADMIN/HOSPITAL_ADMIN never have patient or doctor
+ * profiles, so they're routed first and skip those lookups entirely),
+ * the patient dashboard, the doctor dashboard, or onboarding if
+ * they haven't set up either profile yet. This is the one place this
+ * logic lives, so /login and /register don't need to duplicate it. */
 export default function DashboardDispatcher() {
   const { user, loading } = useRequireAuth();
   const router = useRouter();
@@ -17,6 +19,11 @@ export default function DashboardDispatcher() {
 
   useEffect(() => {
     if (loading || !user) return;
+
+    if (user.role === "SUPER_ADMIN" || user.role === "HOSPITAL_ADMIN") {
+      router.push("/admin");
+      return;
+    }
 
     async function route() {
       const token = localStorage.getItem("dermai_access_token")!;

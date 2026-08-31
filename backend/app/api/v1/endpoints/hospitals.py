@@ -1,25 +1,19 @@
-"""Open for now — see hospital_service.py's docstring and
-docs/DECISIONS.md for why, and the plan to lock this behind
-SUPER_ADMIN auth once Phase 6 (Admin Portal) exists."""
+"""Public, read-only hospital directory — used by registration forms
+(picking which hospital to join) and the "find a doctor" flow.
+Creating/editing hospitals is SUPER_ADMIN-only and lives under
+/admin/platform/hospitals (see endpoints/admin.py) — this file
+deliberately has no POST or PATCH."""
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.core.exceptions import AlreadyExistsError, NotFoundError
+from app.core.exceptions import NotFoundError
 from app.db.session import get_db
-from app.schemas.hospital import HospitalCreate, HospitalOut
+from app.schemas.hospital import HospitalOut
 from app.services import hospital_service
 
 router = APIRouter(prefix="/hospitals", tags=["hospitals"])
-
-
-@router.post("", response_model=HospitalOut, status_code=status.HTTP_201_CREATED)
-def create_hospital(payload: HospitalCreate, db: Session = Depends(get_db)):
-    try:
-        return hospital_service.create_hospital(db, payload)
-    except AlreadyExistsError as e:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
 
 
 @router.get("", response_model=list[HospitalOut])

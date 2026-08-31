@@ -216,3 +216,19 @@ def test_full_booking_flow_end_to_end(client):
     )
     assert cancel_resp.status_code == 200
     assert cancel_resp.json()["status"] == "cancelled"
+
+
+# Note: hospital creation was open/demo-only through Phase 5 — it's
+# now SUPER_ADMIN-only as of Phase 6. See tests/test_hospitals_api.py
+# (public read-only directory) and tests/test_admin_api.py (creation,
+# now gated) for the current coverage.
+
+
+def test_update_my_patient_profile(client):
+    token = register_and_login(client)
+    client.post("/api/v1/patients/me", json={"gender": "female"}, headers=auth_headers(token))
+
+    resp = client.patch("/api/v1/patients/me", json={"phone": "5551234567", "known_allergies": "peanuts"}, headers=auth_headers(token))
+    assert resp.status_code == 200
+    assert resp.json()["phone"] == "5551234567"
+    assert resp.json()["gender"] == "female"  # untouched field preserved

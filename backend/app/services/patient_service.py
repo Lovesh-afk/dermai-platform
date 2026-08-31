@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from app.core.exceptions import AlreadyExistsError, NotFoundError, PermissionDeniedError
 from app.models.patient import Patient
 from app.models.user import User
-from app.schemas.patient import PatientProfileCreate
+from app.schemas.patient import PatientProfileCreate, PatientProfileUpdate
 from app.services.audit_service import log_audit_event
 
 
@@ -38,6 +38,21 @@ def get_patient_by_id(db: Session, patient_id: uuid.UUID) -> Patient:
     patient = db.get(Patient, patient_id)
     if not patient:
         raise NotFoundError("Patient not found")
+    return patient
+
+
+def update_patient_profile(db: Session, patient: Patient, payload: PatientProfileUpdate) -> Patient:
+    updates = payload.model_dump(exclude_unset=True)
+    for field, value in updates.items():
+        setattr(patient, field, value)
+    db.add(patient)
+    db.commit()
+    db.refresh(patient)
+
+    log_audit_event(
+        db, action="patient_profile.update", user_id=patient.user_id,
+        resource_type="Patient", resource_id=str(patient.id), metadata={"fields": list(updates.keys())},
+    )
     return patient
 
 

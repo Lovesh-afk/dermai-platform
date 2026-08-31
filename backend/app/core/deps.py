@@ -46,3 +46,20 @@ def require_permission(permission: str):
         return user
 
     return _checker
+
+
+def require_role(*role_names: str):
+    """Usage: Depends(require_role('SUPER_ADMIN')) or
+    Depends(require_role('SUPER_ADMIN', 'HOSPITAL_ADMIN')) for either.
+    Unlike require_permission (a specific action), this checks the
+    user's role by name — the right tool for "only admins can see
+    this screen at all" rather than "can this role do this specific
+    thing"."""
+
+    def _checker(user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> User:
+        role = db.get(Role, user.role_id)
+        if role.name not in role_names:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions")
+        return user
+
+    return _checker

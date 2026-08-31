@@ -48,6 +48,12 @@ const icons = {
       <path d="M3.5 17c.9-3.6 3.3-5.5 6.5-5.5s5.6 1.9 6.5 5.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
     </svg>
   ),
+  building: (
+    <svg viewBox="0 0 20 20" fill="none" className="h-4.5 w-4.5">
+      <rect x="4" y="2.5" width="9" height="15" rx="1" stroke="currentColor" strokeWidth="1.6" />
+      <path d="M13 8h2.5a1 1 0 0 1 1 1v7.5H13M6.5 5.5h1M9.5 5.5h1M6.5 8.5h1M9.5 8.5h1M6.5 11.5h1M9.5 11.5h1M7 17.5v-3h2v3" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+    </svg>
+  ),
 };
 
 export function DashboardShell({ navItems, children }: { navItems: NavItem[]; children: ReactNode }) {

@@ -76,6 +76,30 @@ export interface HospitalOut {
   is_active: boolean;
 }
 
+export interface PlatformStats {
+  total_hospitals: number;
+  total_users: number;
+  total_patients: number;
+  total_doctors: number;
+  total_appointments: number;
+}
+
+export interface HospitalStats {
+  hospital_id: string;
+  total_doctors: number;
+  total_patients: number;
+  total_appointments: number;
+  total_completed_appointments: number;
+}
+
+export interface StaffMember {
+  id: string;
+  email: string;
+  full_name: string;
+  role: string;
+  is_active: boolean;
+}
+
 export interface PatientProfile {
   id: string;
   user_id: string;
@@ -177,13 +201,13 @@ export const authApi = {
 };
 
 // ---------------------------------------------------------------------------
-// Hospitals (temporary demo-only create — see backend DECISIONS.md)
+// Hospitals (public, read-only directory — creation moved to adminApi
+// in Phase 6, gated behind SUPER_ADMIN)
 // ---------------------------------------------------------------------------
 
 export const hospitalApi = {
   list: () => request<HospitalOut[]>("/hospitals"),
-  create: (data: { name: string; slug: string }) =>
-    request<HospitalOut>("/hospitals", { method: "POST", body: JSON.stringify(data) }),
+  get: (id: string) => request<HospitalOut>(`/hospitals/${id}`),
 };
 
 // ---------------------------------------------------------------------------
@@ -266,6 +290,40 @@ export const appointmentApi = {
 export const medicalRecordApi = {
   create: (token: string, data: { patient_id: string; appointment_id?: string; diagnosis?: string; notes?: string }) =>
     authed<MedicalRecord>("/medical-records", token, { method: "POST", body: JSON.stringify(data) }),
+};
+
+// ---------------------------------------------------------------------------
+// Admin (Phase 6) — split by scope:
+//   platform.*  -> SUPER_ADMIN only, cuts across every hospital
+//   hospital.*  -> SUPER_ADMIN or HOSPITAL_ADMIN, scoped to the
+//                  caller's own hospital (server resolves which one —
+//                  never passed by the client, same "operate on my
+//                  own data" rule used everywhere else in this app)
+// ---------------------------------------------------------------------------
+
+export const adminApi = {
+  platform: {
+    stats: (token: string) => authed<PlatformStats>("/admin/platform/stats", token),
+
+    listHospitals: (token: string) => authed<HospitalOut[]>("/admin/platform/hospitals", token),
+
+    createHospital: (token: string, data: { name: string; slug: string }) =>
+      authed<HospitalOut>("/admin/platform/hospitals", token, { method: "POST", body: JSON.stringify(data) }),
+
+    updateHospital: (token: string, hospitalId: string, data: Partial<{ name: string; subscription_tier: string; is_active: boolean }>) =>
+      authed<HospitalOut>(`/admin/platform/hospitals/${hospitalId}`, token, { method: "PATCH", body: JSON.stringify(data) }),
+
+    promoteHospitalAdmin: (token: string, hospitalId: string, email: string) =>
+      authed<StaffMember>(`/admin/platform/hospitals/${hospitalId}/admins`, token, {
+        method: "POST",
+        body: JSON.stringify({ email }),
+      }),
+  },
+
+  hospital: {
+    stats: (token: string) => authed<HospitalStats>("/admin/hospital/stats", token),
+    staff: (token: string) => authed<StaffMember[]>("/admin/hospital/staff", token),
+  },
 };
 
 export function fileUrl(path: string): string {

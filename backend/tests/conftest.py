@@ -79,6 +79,35 @@ def register_and_login(client, email="patient@example.com", password="strongpass
     finally:
         db.close()
 
-    client.post("/api/v1/auth/register", json={"email": email, "password": password, "full_name": full_name})
+    client.post("/api/v1/auth/register", json={"email": email, "password": password, "full_name": full_name, "hospital_slug": hospital_slug})
+    login_resp = client.post("/api/v1/auth/login", json={"email": email, "password": password})
+    return login_resp.json()["access_token"]
+
+
+def create_super_admin_and_login(client, email="super@example.com", password="strongpass123"):
+    """Bootstraps a SUPER_ADMIN account directly in the test DB —
+    mirrors what scripts/seed_roles.py does for real deployments, since
+    there's no API endpoint that can create the very first admin (you'd
+    need to already be one to call any admin endpoint)."""
+    from app.core.security import hash_password
+    from app.db.session import get_db
+    from app.main import app
+    from app.models.role import Role
+    from app.models.user import User
+
+    override = app.dependency_overrides[get_db]
+    db = next(override())
+    try:
+        role = Role(name="SUPER_ADMIN", permissions=["*"], hospital_id=None)
+        db.add(role)
+        db.commit()
+        db.refresh(role)
+
+        user = User(email=email, hashed_password=hash_password(password), full_name="Super Admin", role_id=role.id, hospital_id=None)
+        db.add(user)
+        db.commit()
+    finally:
+        db.close()
+
     login_resp = client.post("/api/v1/auth/login", json={"email": email, "password": password})
     return login_resp.json()["access_token"]

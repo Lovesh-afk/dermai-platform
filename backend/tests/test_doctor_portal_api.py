@@ -13,15 +13,20 @@ def auth_headers(token):
 
 
 def _seed_hospital(client):
+    """Seeds a hospital directly via the service layer (not a bare
+    ORM insert) so it gets its PATIENT/DOCTOR/HOSPITAL_ADMIN roles the
+    same way a real hospital created through the app would — a bare
+    Hospital() row with no roles let registration silently fall back
+    to the wrong role scope, a bug only exposed once the
+    register_and_login test helper started actually passing
+    hospital_slug through (see conftest.py)."""
     from app.db.session import get_db
     from app.main import app
-    from app.models.hospital import Hospital
+    from app.schemas.hospital import HospitalCreate
+    from app.services.hospital_service import create_hospital
 
     db = next(app.dependency_overrides[get_db]())
-    hospital = Hospital(name="City Derma Clinic", slug="city-derma")
-    db.add(hospital)
-    db.commit()
-    db.refresh(hospital)
+    hospital = create_hospital(db, HospitalCreate(name="City Derma Clinic", slug="city-derma"), created_by_user_id=None)
     hospital_id = str(hospital.id)
     db.close()
     return hospital_id

@@ -13,7 +13,7 @@ from app.db.session import get_db
 from app.models.user import User
 from app.schemas.appointment import AppointmentOut
 from app.schemas.medical_record import MedicalRecordOut
-from app.schemas.patient import PatientProfileCreate, PatientProfileOut
+from app.schemas.patient import PatientProfileCreate, PatientProfileOut, PatientProfileUpdate
 from app.schemas.skin_image import SkinImageOut
 from app.services import appointment_service, patient_service, skin_image_service
 from app.services.medical_record_service import list_records_for_patient
@@ -38,6 +38,12 @@ def get_my_profile(current_user: User = Depends(get_current_user), db: Session =
     except NotFoundError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
     return patient
+
+
+@router.patch("/me", response_model=PatientProfileOut)
+def update_my_profile(payload: PatientProfileUpdate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    patient = _require_patient_profile(db, current_user)
+    return patient_service.update_patient_profile(db, patient, payload)
 
 
 @router.get("/me/appointments", response_model=list[AppointmentOut])
