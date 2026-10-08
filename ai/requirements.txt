@@ -1,0 +1,12 @@
+# Inference (serving predictions — what Phase 8's Prediction API needs)
+tensorflow-cpu==2.21.0
+pillow==12.3.0
+numpy==2.5.2
+
+# ONNX export/verification
+tf2onnx==1.17.0
+onnx==1.22.0
+onnxruntime==1.29.0
+
+# Evaluation
+scikit-learn==1.9.0
