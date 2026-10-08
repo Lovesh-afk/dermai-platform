@@ -21,6 +21,14 @@ datasets/processed/
 *.h5
 *.pt
 *.onnx
+# Exception: the small (< 25MB), integrated serving model — see
+# ai/models/README.md for why this one specific model is tracked
+# despite the general rule above. Future from-scratch trained models
+# (potentially much larger) should NOT be added the same way —
+# consider Git LFS or external model storage instead if/when that
+# becomes relevant.
+!ai/models/skin_disease_model.h5
+!ai/models/skin_disease_model.onnx
 
 # OS
 .DS_Store
@@ -29,3 +37,6 @@ datasets/processed/
 *.tfstate
 *.tfstate.backup
 .terraform/
+
+# Private notes - not for the public repo
+docs/DECISIONS.md
