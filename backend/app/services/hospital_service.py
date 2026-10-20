@@ -28,6 +28,27 @@ DEFAULT_HOSPITAL_ROLES = [
 ]
 
 
+def ensure_hospital_roles(db: Session, hospital_id: uuid.UUID) -> list[str]:
+    """Creates any of DEFAULT_HOSPITAL_ROLES missing for this hospital.
+    Idempotent: roles that already exist are left untouched, so it's
+    safe to call any number of times.
+
+    Exists because hospitals created before Phase 6 only got a PATIENT
+    role, so promoting a HOSPITAL_ADMIN there failed with "role is not
+    seeded". Returns the names of roles it created (empty if none)."""
+    existing = set(
+        db.execute(select(Role.name).where(Role.hospital_id == hospital_id)).scalars().all()
+    )
+    created = []
+    for role_name, permissions in DEFAULT_HOSPITAL_ROLES:
+        if role_name not in existing:
+            db.add(Role(name=role_name, permissions=permissions, hospital_id=hospital_id))
+            created.append(role_name)
+    if created:
+        db.commit()
+    return created
+
+
 def create_hospital(db: Session, payload: HospitalCreate, created_by_user_id: uuid.UUID | None) -> Hospital:
     existing = db.execute(select(Hospital).where(Hospital.slug == payload.slug)).scalar_one_or_none()
     if existing:
@@ -38,9 +59,7 @@ def create_hospital(db: Session, payload: HospitalCreate, created_by_user_id: uu
     db.commit()
     db.refresh(hospital)
 
-    for role_name, permissions in DEFAULT_HOSPITAL_ROLES:
-        db.add(Role(name=role_name, permissions=permissions, hospital_id=hospital.id))
-    db.commit()
+    ensure_hospital_roles(db, hospital.id)
 
     log_audit_event(
         db, action="hospital.create", user_id=created_by_user_id, hospital_id=hospital.id,

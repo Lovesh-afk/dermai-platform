@@ -189,3 +189,59 @@ def test_hospital_admin_cannot_update_hospital(client):
         f"/api/v1/admin/platform/hospitals/{hospital['id']}", json={"is_active": False}, headers=auth_headers(admin_token)
     )
     assert resp.status_code == 403
+
+
+# --- Legacy hospitals (created before Phase 6, missing HOSPITAL_ADMIN) ---
+
+def _create_legacy_hospital(slug):
+    """Mimics a hospital created before Phase 6: only a PATIENT role,
+    no DOCTOR or HOSPITAL_ADMIN — the exact state that caused
+    'HOSPITAL_ADMIN role is not seeded for this hospital'."""
+    from app.db.session import get_db
+    from app.main import app
+    from app.models.hospital import Hospital
+    from app.models.role import Role
+
+    db = next(app.dependency_overrides[get_db]())
+    try:
+        hospital = Hospital(name="Legacy Clinic", slug=slug)
+        db.add(hospital)
+        db.commit()
+        db.refresh(hospital)
+        db.add(Role(name="PATIENT", permissions=["appointments:read"], hospital_id=hospital.id))
+        db.commit()
+        return str(hospital.id)
+    finally:
+        db.close()
+
+
+def test_promote_admin_works_for_legacy_hospital_missing_role(client):
+    super_token = create_super_admin_and_login(client)
+    hospital_id = _create_legacy_hospital("legacy-clinic")
+    register_and_login(client, email="legacy-admin@example.com", hospital_slug="legacy-clinic")
+
+    resp = client.post(
+        f"/api/v1/admin/platform/hospitals/{hospital_id}/admins",
+        json={"email": "legacy-admin@example.com"},
+        headers=auth_headers(super_token),
+    )
+    assert resp.status_code == 200
+    assert resp.json()["role"] == "HOSPITAL_ADMIN"
+
+
+def test_ensure_hospital_roles_fills_gaps_and_is_idempotent(client):
+    from app.db.session import get_db
+    from app.main import app
+    from app.services.hospital_service import ensure_hospital_roles
+    import uuid
+
+    hospital_id = uuid.UUID(_create_legacy_hospital("idem-clinic"))
+    db = next(app.dependency_overrides[get_db]())
+    try:
+        first = ensure_hospital_roles(db, hospital_id)
+        assert sorted(first) == ["DOCTOR", "HOSPITAL_ADMIN"]  # PATIENT already existed
+
+        second = ensure_hospital_roles(db, hospital_id)
+        assert second == []  # nothing left to create, no duplicates
+    finally:
+        db.close()

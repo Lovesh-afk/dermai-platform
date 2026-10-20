@@ -19,6 +19,7 @@ from app.models.role import Role
 from app.models.user import User
 from app.schemas.admin import HospitalStatsOut, PlatformStatsOut
 from app.services.audit_service import log_audit_event
+from app.services.hospital_service import ensure_hospital_roles
 
 
 def get_platform_stats(db: Session) -> PlatformStatsOut:
@@ -69,11 +70,13 @@ def promote_user_to_hospital_admin(db: Session, hospital_id: uuid.UUID, email: s
     if not user:
         raise NotFoundError(f"No user with email {email} found in this hospital")
 
+    # Self-heal hospitals created before Phase 6, which never got a
+    # HOSPITAL_ADMIN role. Creates it on demand instead of failing.
+    ensure_hospital_roles(db, hospital_id)
+
     admin_role = db.execute(
         select(Role).where(Role.name == "HOSPITAL_ADMIN", Role.hospital_id == hospital_id)
-    ).scalar_one_or_none()
-    if not admin_role:
-        raise NotFoundError("HOSPITAL_ADMIN role is not seeded for this hospital")
+    ).scalar_one()
 
     user.role_id = admin_role.id
     db.add(user)
