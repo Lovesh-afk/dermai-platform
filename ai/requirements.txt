@@ -10,3 +10,10 @@ onnxruntime==1.29.0
 
 # Evaluation
 scikit-learn==1.9.0
+
+# Inference service (see requirements-service.txt) + its tests
+fastapi==0.115.0
+uvicorn==0.30.6
+python-multipart==0.0.9
+pytest==8.3.3
+httpx==0.27.2

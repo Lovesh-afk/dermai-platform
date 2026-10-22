@@ -17,7 +17,8 @@ from app.schemas.appointment import AppointmentOut
 from app.schemas.doctor import DoctorProfileCreate, DoctorProfileOut, DoctorProfileUpdate
 from app.schemas.medical_record import MedicalRecordOut
 from app.schemas.patient import PatientProfileOut
-from app.services import appointment_service, doctor_service, medical_record_service, patient_service
+from app.schemas.skin_image import SkinImageOut
+from app.services import appointment_service, doctor_service, medical_record_service, patient_service, skin_image_service
 
 router = APIRouter(prefix="/doctors", tags=["doctors"])
 
@@ -66,6 +67,20 @@ def get_my_patient(patient_id: str, current_user: User = Depends(get_current_use
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
     except PermissionDeniedError as e:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
+
+
+@router.get("/me/patients/{patient_id}/images", response_model=list[SkinImageOut])
+def get_my_patient_images(patient_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """A patient's skin photos and AI results — same access rule as
+    viewing their profile: only doctors with a shared appointment."""
+    doctor = _require_doctor_profile(db, current_user)
+    try:
+        patient = patient_service.get_patient_for_doctor(db, uuid.UUID(patient_id), doctor.id)
+    except NotFoundError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except PermissionDeniedError as e:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
+    return skin_image_service.list_images_for_patient(db, patient.id)
 
 
 @router.get("/me/medical-records", response_model=list[MedicalRecordOut])

@@ -4,7 +4,9 @@ import { useState, useEffect, FormEvent } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import { doctorApi, medicalRecordApi, PatientProfile, MedicalRecord, ApiError } from "@/lib/api";
-import { Card, Field, Input, Textarea, Button, Alert, Spinner } from "@/components/ui";
+import { Card, Field, Input, Textarea, Button, Alert, Spinner, StatusPill } from "@/components/ui";
+import { useAuthedData } from "@/lib/useAuthedData";
+import { AnalysisResult } from "@/components/AnalysisResult";
 
 export default function DoctorPatientDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -29,7 +31,12 @@ export default function DoctorPatientDetailPage() {
       .catch(() => setLoadError(true))
       .finally(() => setLoading(false));
 
-    doctorApi.myCreatedRecords(accessToken).then((all) => setRecords(all.filter((r) => r.patient_id === id)));
+    doctorApi.myCreatedRecords(accessToken).then((all) => setRecords(all.filter((r) => r.patient_id === id))).catch(() => {
+      // Non-critical: the "past records" section just stays empty if
+      // this fails, rather than crashing the whole page over a
+      // secondary panel — the patient details and record-writing
+      // form above it still work fine on their own.
+    });
   }, [accessToken, id]);
 
   async function handleCreateRecord(e: FormEvent) {
@@ -103,7 +110,42 @@ export default function DoctorPatientDetailPage() {
           </div>
         )}
       </section>
+
+      <PatientAiResults patientId={id} />
     </div>
+  );
+}
+
+/** The patient's skin photos and AI results, to inform the doctor's own
+ * assessment. Access is checked server-side (shared appointment required). */
+function PatientAiResults({ patientId }: { patientId: string }) {
+  const { data: images, loading } = useAuthedData((t) => doctorApi.patientImages(t, patientId), [patientId]);
+
+  return (
+    <section>
+      <h2 className="mb-3 font-display text-xl text-ink">Skin photos &amp; AI analysis</h2>
+      {loading && !images ? (
+        <Spinner className="h-5 w-5 text-pine-600" />
+      ) : !images || images.length === 0 ? (
+        <p className="text-sm text-ink-soft">This patient hasn&rsquo;t uploaded any photos.</p>
+      ) : (
+        <div className="grid grid-cols-2 gap-4">
+          {images.map((img) => (
+            <Card key={img.id}>
+              <div className="mb-3 flex items-center justify-between">
+                <p className="text-xs text-ink-soft">{new Date(img.created_at).toLocaleDateString()}</p>
+                <StatusPill status={img.status} />
+              </div>
+              {img.prediction ? (
+                <AnalysisResult photoUrl={img.file_url} prediction={img.prediction} />
+              ) : (
+                <p className="text-sm text-ink-soft">No AI result for this photo yet.</p>
+              )}
+            </Card>
+          ))}
+        </div>
+      )}
+    </section>
   );
 }
 

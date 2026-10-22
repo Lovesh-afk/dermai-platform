@@ -36,8 +36,36 @@ async function request<T>(path: string, options: RequestInit = {}, accessToken?:
   return body as T;
 }
 
-function authed<T>(path: string, token: string, options: RequestInit = {}) {
-  return request<T>(path, options, token);
+function authed<T>(path: string, token: string, options: RequestInit = {}): Promise<T> {
+  return request<T>(path, options, token).catch(async (err) => {
+    // A 401 here almost always means the 15-minute access token
+    // expired mid-session — without this, every page silently crashed
+    // with an unhandled "Could not validate credentials" error the
+    // moment that happened, no matter how careful any individual page
+    // was about its own error handling. One refresh attempt here
+    // covers every call site in the app, rather than each page having
+    // to remember to do it itself.
+    if (err instanceof ApiError && err.status === 401) {
+      const refreshToken = localStorage.getItem("dermai_refresh_token");
+      if (refreshToken) {
+        try {
+          const tokens = await request<{ access_token: string; refresh_token: string }>("/auth/refresh", {
+            method: "POST",
+            body: JSON.stringify({ refresh_token: refreshToken }),
+          });
+          localStorage.setItem("dermai_access_token", tokens.access_token);
+          localStorage.setItem("dermai_refresh_token", tokens.refresh_token);
+          return await request<T>(path, options, tokens.access_token);
+        } catch {
+          // Refresh token is also dead — fall through to a full logout below.
+        }
+      }
+      localStorage.removeItem("dermai_access_token");
+      localStorage.removeItem("dermai_refresh_token");
+      if (typeof window !== "undefined") window.location.href = "/login";
+    }
+    throw err;
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -148,7 +176,19 @@ export interface MedicalRecord {
   attachment_urls: string[];
 }
 
-export type SkinImageStatus = "uploaded" | "queued_for_analysis" | "analyzed";
+export type SkinImageStatus = "uploaded" | "queued_for_analysis" | "analyzed" | "failed";
+
+export interface Prediction {
+  predicted_class: string;
+  label: string;
+  confidence: number; // 0-1
+  all_probabilities: Record<string, number>;
+  guidance: string;
+  disclaimer: string;
+  gradcam_url: string;
+  model_name: string;
+  created_at: string;
+}
 
 export interface SkinImage {
   id: string;
@@ -156,6 +196,8 @@ export interface SkinImage {
   file_url: string;
   content_type: string;
   status: SkinImageStatus;
+  analysis_error: string | null;
+  prediction: Prediction | null;
   created_at: string;
 }
 
@@ -232,6 +274,10 @@ export const patientApi = {
 
   myImages: (token: string) => authed<SkinImage[]>("/patients/me/images", token),
 
+  /** Retries analysis for an image whose last attempt failed. */
+  analyzeImage: (token: string, imageId: string) =>
+    authed<SkinImage>(`/patients/me/images/${imageId}/analyze`, token, { method: "POST" }),
+
   updateProfile: (token: string, data: Partial<Omit<PatientProfile, "id" | "user_id">>) =>
     authed<PatientProfile>("/patients/me", token, { method: "PATCH", body: JSON.stringify(data) }),
 };
@@ -254,6 +300,9 @@ export const doctorApi = {
   myPatients: (token: string) => authed<PatientProfile[]>("/doctors/me/patients", token),
 
   myPatient: (token: string, patientId: string) => authed<PatientProfile>(`/doctors/me/patients/${patientId}`, token),
+
+  patientImages: (token: string, patientId: string) =>
+    authed<SkinImage[]>(`/doctors/me/patients/${patientId}/images`, token),
 
   myCreatedRecords: (token: string) => authed<MedicalRecord[]>("/doctors/me/medical-records", token),
 

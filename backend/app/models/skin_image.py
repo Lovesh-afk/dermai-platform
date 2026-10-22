@@ -16,7 +16,7 @@ from typing import Optional
 
 from sqlalchemy import Enum, ForeignKey, String
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base_class import Base, TimestampMixin, UUIDPKMixin
 
@@ -25,6 +25,7 @@ class SkinImageStatus(str, enum.Enum):
     UPLOADED = "uploaded"
     QUEUED_FOR_ANALYSIS = "queued_for_analysis"
     ANALYZED = "analyzed"
+    FAILED = "failed"  # analysis errored; patient can retry
 
 
 class SkinImage(Base, UUIDPKMixin, TimestampMixin):
@@ -39,4 +40,12 @@ class SkinImage(Base, UUIDPKMixin, TimestampMixin):
 
     status: Mapped[SkinImageStatus] = mapped_column(
         Enum(SkinImageStatus, native_enum=False, length=30), default=SkinImageStatus.UPLOADED, nullable=False
+    )
+    # Patient-safe explanation shown when status is FAILED
+    analysis_error: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+
+    # selectin: loaded alongside the image in one extra query, so listing
+    # images never triggers one query per image (the N+1 problem)
+    prediction: Mapped[Optional["Prediction"]] = relationship(  # noqa: F821
+        "Prediction", uselist=False, lazy="selectin"
     )

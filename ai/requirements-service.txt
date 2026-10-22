@@ -1,0 +1,8 @@
+# Minimal dependencies for the inference service container only.
+# (ai/requirements.txt has the full set incl. ONNX export + evaluation.)
+tensorflow-cpu==2.21.0
+pillow==12.3.0
+numpy==2.5.2
+fastapi==0.115.0
+uvicorn==0.30.6
+python-multipart==0.0.9

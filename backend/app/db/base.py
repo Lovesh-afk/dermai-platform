@@ -8,6 +8,7 @@ from app.models.hospital import Hospital  # noqa
 from app.models.medical_record import MedicalRecord  # noqa
 from app.models.password_reset_token import PasswordResetToken  # noqa
 from app.models.patient import Patient  # noqa
+from app.models.prediction import Prediction  # noqa
 from app.models.role import Role  # noqa
 from app.models.session import UserSession  # noqa
 from app.models.skin_image import SkinImage  # noqa

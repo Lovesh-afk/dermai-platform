@@ -40,3 +40,6 @@ datasets/processed/
 
 # Private notes - not for the public repo
 docs/DECISIONS.md
+
+# Uploaded patient photos + AI heatmaps - never commit
+backend/uploads/

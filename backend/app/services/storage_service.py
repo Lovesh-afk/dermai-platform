@@ -39,6 +39,22 @@ def save_file(content: bytes, filename: str, content_type: str) -> tuple[str, st
     return _save_to_local_disk(content, filename)
 
 
+def read_file(storage_key: str) -> bytes:
+    """Reads back a stored file's bytes. Used by the analysis task to
+    send an uploaded image to the inference service."""
+    if is_s3_configured():
+        import boto3
+
+        s3 = boto3.client(
+            "s3",
+            aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+            aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
+            region_name=settings.AWS_REGION,
+        )
+        return s3.get_object(Bucket=settings.AWS_S3_BUCKET, Key=storage_key)["Body"].read()
+    return (LOCAL_UPLOAD_DIR / storage_key).read_bytes()
+
+
 def _save_to_local_disk(content: bytes, filename: str) -> tuple[str, str]:
     ext = Path(filename).suffix or ".bin"
     unique_name = f"{uuid.uuid4()}{ext}"

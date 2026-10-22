@@ -9,6 +9,7 @@ celery_app = Celery(
     "dermai",
     broker=settings.CELERY_BROKER_URL,
     backend=settings.CELERY_RESULT_BACKEND,
+    include=["app.tasks.prediction_tasks"],
 )
 
 celery_app.conf.update(
@@ -17,4 +18,7 @@ celery_app.conf.update(
     result_serializer="json",
     timezone="UTC",
     enable_utc=True,
+    # If the broker is down, give up quickly instead of blocking the
+    # upload request for ages; the image is marked FAILED and can be retried.
+    task_publish_retry_policy={"max_retries": 2, "interval_start": 0, "interval_step": 0.5},
 )

@@ -40,6 +40,13 @@ def client(tmp_path, monkeypatch):
 
     monkeypatch.setattr(storage_service, "LOCAL_UPLOAD_DIR", tmp_path)
 
+    # No message broker in tests: record queued image IDs instead of
+    # sending them to Celery. Tests run the analysis explicitly.
+    import app.services.prediction_service as prediction_service
+
+    queued_ids = []
+    monkeypatch.setattr(prediction_service, "enqueue_analysis", lambda image_id: queued_ids.append(image_id))
+
     engine = create_engine("sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool)
     Base.metadata.create_all(engine)
     TestingSessionLocal = sessionmaker(bind=engine)

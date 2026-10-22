@@ -4,6 +4,8 @@ always resolving the patient record from get_current_user rather
 than trusting a patient_id in the URL. Cross-patient access (a doctor
 viewing a specific patient) is a Phase 5 (Doctor Portal) concern with
 its own RBAC checks — deliberately not mixed in here."""
+import uuid
+
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from sqlalchemy.orm import Session
 
@@ -15,7 +17,8 @@ from app.schemas.appointment import AppointmentOut
 from app.schemas.medical_record import MedicalRecordOut
 from app.schemas.patient import PatientProfileCreate, PatientProfileOut, PatientProfileUpdate
 from app.schemas.skin_image import SkinImageOut
-from app.services import appointment_service, patient_service, skin_image_service
+from app.services import appointment_service, patient_service, prediction_service, skin_image_service
+from app.services.prediction_service import AnalysisNotAllowedError
 from app.services.medical_record_service import list_records_for_patient
 from app.services.skin_image_service import ImageTooLargeError, UnsupportedImageTypeError
 
@@ -72,7 +75,22 @@ async def upload_skin_image(
         )
     except (UnsupportedImageTypeError, ImageTooLargeError) as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
-    return image
+    # Start AI analysis right away; the response comes back immediately
+    # with status "queued_for_analysis" and the frontend polls for the result.
+    return prediction_service.request_analysis(db, image)
+
+
+@router.post("/me/images/{image_id}/analyze", response_model=SkinImageOut, status_code=status.HTTP_202_ACCEPTED)
+def analyze_my_image(image_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Re-runs analysis for an image whose previous attempt failed."""
+    patient = _require_patient_profile(db, current_user)
+    try:
+        image = skin_image_service.get_image_for_patient(db, uuid.UUID(image_id), patient.id)
+        return prediction_service.request_analysis(db, image)
+    except (NotFoundError, ValueError):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Image not found")
+    except AnalysisNotAllowedError as e:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
 
 
 @router.get("/me/images", response_model=list[SkinImageOut])

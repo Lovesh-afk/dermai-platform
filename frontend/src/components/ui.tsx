@@ -76,8 +76,9 @@ const STATUS_STYLES: Record<string, { bar: string; badge: string; label: string 
   cancelled: { bar: "bg-alert", badge: "bg-alert-soft text-alert", label: "Cancelled" },
   no_show: { bar: "bg-alert", badge: "bg-alert-soft text-alert", label: "No-show" },
   uploaded: { bar: "bg-ochre-400", badge: "bg-ochre-50 text-ochre-700", label: "Uploaded" },
-  queued_for_analysis: { bar: "bg-pine-400", badge: "bg-pine-50 text-pine-700", label: "Queued for analysis" },
+  queued_for_analysis: { bar: "bg-pine-400", badge: "bg-pine-50 text-pine-700", label: "Analyzing…" },
   analyzed: { bar: "bg-pine-700", badge: "bg-pine-100 text-pine-800", label: "Analyzed" },
+  failed: { bar: "bg-alert", badge: "bg-alert-soft text-alert", label: "Analysis failed" },
 };
 
 export function StatusPill({ status }: { status: string }) {

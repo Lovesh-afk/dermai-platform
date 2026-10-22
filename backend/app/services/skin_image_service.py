@@ -3,7 +3,7 @@ import uuid
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.core.exceptions import AppError
+from app.core.exceptions import AppError, NotFoundError
 from app.models.patient import Patient
 from app.models.skin_image import SkinImage
 from app.services import storage_service
@@ -55,3 +55,13 @@ def list_images_for_patient(db: Session, patient_id: uuid.UUID) -> list[SkinImag
     return list(
         db.execute(select(SkinImage).where(SkinImage.patient_id == patient_id).order_by(SkinImage.created_at.desc())).scalars().all()
     )
+
+
+def get_image_for_patient(db: Session, image_id: uuid.UUID, patient_id: uuid.UUID) -> SkinImage:
+    """Returns the image only if it belongs to this patient. Another
+    patient's image gets the same 404 as a nonexistent one, so the API
+    never confirms that someone else's image ID exists."""
+    image = db.get(SkinImage, image_id)
+    if image is None or image.patient_id != patient_id:
+        raise NotFoundError("Image not found")
+    return image

@@ -20,6 +20,9 @@ bcrypt==4.0.1  # pinned: passlib 1.7.4's self-test breaks on bcrypt>=4.1
 python-multipart==0.0.9
 pyotp==2.9.0
 
+# HTTP client (calls the inference service; also used by FastAPI's TestClient)
+httpx==0.27.2
+
 # Background tasks
 celery==5.4.0
 redis==5.0.8
@@ -27,7 +30,6 @@ redis==5.0.8
 # Testing
 pytest==8.3.3
 pytest-asyncio==0.24.0
-httpx==0.27.2
 
 # Storage (S3 — only imported if AWS credentials are configured;
 # local disk is the default in dev, see services/storage_service.py)

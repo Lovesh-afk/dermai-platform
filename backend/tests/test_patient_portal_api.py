@@ -85,7 +85,7 @@ def test_upload_skin_image_success(client):
     )
     assert resp.status_code == 201
     body = resp.json()
-    assert body["status"] == "uploaded"
+    assert body["status"] == "queued_for_analysis"  # analysis starts automatically (Phase 8)
     assert body["file_url"].startswith("/uploads/")
 
 
