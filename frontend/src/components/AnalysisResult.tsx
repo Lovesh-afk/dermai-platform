@@ -1,27 +1,48 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { Prediction, fileUrl } from "@/lib/api";
 
-/** Below this, the result is flagged as uncertain. A softmax "confidence"
- * of 0.46 means the model is close to guessing between classes. */
-const LOW_CONFIDENCE_THRESHOLD = 0.6;
+/** Below this, the result is additionally flagged as uncertain. */
+const LOW_SCORE_THRESHOLD = 0.6;
+
+/** User-facing wording lives here, in the frontend, on purpose: it can be
+ * made safer without retraining or redeploying the model, and it also
+ * applies to results that were stored before the wording changed.
+ *
+ * "normal" is never phrased as "no condition": the model only checks 4
+ * conditions, so the honest statement is that it found none of THOSE. */
+const RESULT_TITLES: Record<string, string> = {
+  acne: "Possible acne",
+  eczema: "Possible eczema",
+  fungal: "Possible fungal infection",
+  normal: "No signs of acne, eczema or fungal infection found",
+};
 
 const CLASS_NAMES: Record<string, string> = {
   acne: "Acne",
   eczema: "Eczema",
   fungal: "Fungal infection",
-  normal: "No condition",
+  normal: "None of these",
 };
 
 const pct = (v: number) => `${Math.round(v * 100)}%`;
 
-/** One AI analysis: photo / Grad-CAM heatmap toggle, the top result,
- * every class probability, guidance, and the disclaimer. Shared by the
- * patient's photo page and the doctor's patient view. */
-export function AnalysisResult({ photoUrl, prediction }: { photoUrl: string; prediction: Prediction }) {
+/** One AI analysis: photo / Grad-CAM heatmap toggle, the result, every
+ * class score, guidance, and safety messaging. Shared by the patient's
+ * photo page and the doctor's patient view. */
+export function AnalysisResult({
+  photoUrl,
+  prediction,
+  showBookingLink = false,
+}: {
+  photoUrl: string;
+  prediction: Prediction;
+  showBookingLink?: boolean; // patients get a "book a dermatologist" prompt; doctors don't need one
+}) {
   const [showHeatmap, setShowHeatmap] = useState(false);
-  const isLowConfidence = prediction.confidence < LOW_CONFIDENCE_THRESHOLD;
+  const isLowScore = prediction.confidence < LOW_SCORE_THRESHOLD;
   const ranked = Object.entries(prediction.all_probabilities).sort((a, b) => b[1] - a[1]);
 
   return (
@@ -55,18 +76,20 @@ export function AnalysisResult({ photoUrl, prediction }: { photoUrl: string; pre
       </div>
 
       <div>
-        <p className="font-display text-lg text-ink">{prediction.label}</p>
-        <p className="text-sm text-ink-soft">Model confidence: {pct(prediction.confidence)}</p>
+        <p className="font-display text-lg text-ink">{RESULT_TITLES[prediction.predicted_class] ?? prediction.label}</p>
+        <p className="text-sm text-ink-soft">Model score: {pct(prediction.confidence)}</p>
+        {/* Softmax scores aren't calibrated probabilities: a model can score 100% and still be wrong. */}
+        <p className="text-xs text-ink-soft">How strongly the model leans toward this answer, not the chance that it&rsquo;s correct.</p>
       </div>
 
-      {isLowConfidence && (
-        <p className="rounded-lg bg-ochre-50 px-3 py-2 text-sm text-ochre-700">
-          Low confidence: the model isn&rsquo;t sure about this photo. Treat this result with extra caution, and try a
-          clearer, well-lit close-up if you can.
-        </p>
-      )}
+      {/* Always shown, whatever the score: a high score is not a guarantee. */}
+      <p className="rounded-lg bg-ochre-50 px-3 py-2 text-sm text-ochre-700">
+        This AI only checks for acne, eczema and fungal infection, and it can be wrong, even with a high score.
+        It can&rsquo;t rule out other skin conditions. Only a dermatologist can diagnose you.
+        {isLowScore && " This result is especially uncertain: try a clearer, well-lit close-up."}
+      </p>
 
-      <ul className="flex flex-col gap-1.5" aria-label="Probability for each condition">
+      <ul className="flex flex-col gap-1.5" aria-label="Model score for each condition">
         {ranked.map(([cls, p]) => (
           <li key={cls} className="text-xs">
             <div className="flex justify-between text-ink-soft">
@@ -81,6 +104,16 @@ export function AnalysisResult({ photoUrl, prediction }: { photoUrl: string; pre
       </ul>
 
       <p className="text-sm text-ink">{prediction.guidance}</p>
+
+      {showBookingLink && (
+        <Link
+          href="/patient/doctors"
+          className="inline-flex w-fit items-center rounded-full bg-pine-700 px-4 py-2 text-sm font-medium text-white hover:bg-pine-800"
+        >
+          Book a dermatologist
+        </Link>
+      )}
+
       <p className="border-t border-sage-100 pt-3 text-xs text-ink-soft">{prediction.disclaimer}</p>
     </div>
   );

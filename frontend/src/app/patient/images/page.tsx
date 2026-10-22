@@ -96,7 +96,7 @@ function ImageCard({ image, onAnalyze }: { image: SkinImage; onAnalyze: () => vo
       </div>
 
       {image.status === "analyzed" && image.prediction ? (
-        <AnalysisResult photoUrl={image.file_url} prediction={image.prediction} />
+        <AnalysisResult photoUrl={image.file_url} prediction={image.prediction} showBookingLink />
       ) : (
         <div className="flex flex-col gap-3">
           {/* eslint-disable-next-line @next/next/no-img-element */}
