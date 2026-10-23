@@ -48,6 +48,12 @@ const icons = {
       <path d="M3.5 17c.9-3.6 3.3-5.5 6.5-5.5s5.6 1.9 6.5 5.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
     </svg>
   ),
+  chat: (
+    <svg viewBox="0 0 20 20" fill="none" className="h-4.5 w-4.5">
+      <path d="M4 4.5h12a1 1 0 0 1 1 1v7.5a1 1 0 0 1-1 1H8.5L5 17v-3H4a1 1 0 0 1-1-1V5.5a1 1 0 0 1 1-1Z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
+      <path d="M6.5 8.5h7M6.5 11h4.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+    </svg>
+  ),
   building: (
     <svg viewBox="0 0 20 20" fill="none" className="h-4.5 w-4.5">
       <rect x="4" y="2.5" width="9" height="15" rx="1" stroke="currentColor" strokeWidth="1.6" />

@@ -375,6 +375,49 @@ export const adminApi = {
   },
 };
 
+// ---------------------------------------------------------------------------
+// Chatbot (Phase 9)
+// ---------------------------------------------------------------------------
+
+/** How an answer was produced: AI-written from our notes, the notes
+ * themselves (no AI key / AI unavailable), a fixed safety response,
+ * or a redirect for off-topic questions. */
+export type ChatMode = "ai" | "knowledge_base" | "emergency" | "out_of_scope";
+
+export interface ChatMessage {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+  mode: ChatMode | null;
+  sources: { title: string; section: string }[];
+  created_at: string;
+}
+
+export interface ChatConversation {
+  id: string;
+  title: string;
+  updated_at: string;
+}
+
+export interface ChatTurn {
+  conversation_id: string;
+  user_message: ChatMessage;
+  assistant_message: ChatMessage;
+}
+
+export const chatApi = {
+  send: (token: string, content: string, conversationId?: string) =>
+    authed<ChatTurn>("/chat/messages", token, {
+      method: "POST",
+      body: JSON.stringify({ content, conversation_id: conversationId ?? null }),
+    }),
+  conversations: (token: string) => authed<ChatConversation[]>("/chat/conversations", token),
+  messages: (token: string, conversationId: string) =>
+    authed<ChatMessage[]>(`/chat/conversations/${conversationId}/messages`, token),
+  remove: (token: string, conversationId: string) =>
+    authed<void>(`/chat/conversations/${conversationId}`, token, { method: "DELETE" }),
+};
+
 export function fileUrl(path: string): string {
   return path.startsWith("http") ? path : `${API_URL}${path}`;
 }

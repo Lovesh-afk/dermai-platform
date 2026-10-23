@@ -31,6 +31,12 @@ class Settings(BaseSettings):
     # docker-compose service name, so this default works inside compose.
     INFERENCE_SERVICE_URL: str = "http://inference:8001"
 
+    # Chatbot (Phase 9). Leave GEMINI_API_KEY empty to run the chatbot in
+    # knowledge-base-only mode; set it in .env to enable AI answers.
+    GEMINI_API_KEY: str = ""
+    GEMINI_MODEL: str = "gemini-2.5-flash"
+    LLM_TIMEOUT_SECONDS: float = 30.0
+
     AWS_ACCESS_KEY_ID: str = ""
     AWS_SECRET_ACCESS_KEY: str = ""
     AWS_S3_BUCKET: str = ""

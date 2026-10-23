@@ -23,6 +23,9 @@ pyotp==2.9.0
 # HTTP client (calls the inference service; also used by FastAPI's TestClient)
 httpx==0.27.2
 
+# Chatbot retrieval: word stemming for BM25 search (pure Python, no dependencies)
+snowballstemmer==2.2.0
+
 # Background tasks
 celery==5.4.0
 redis==5.0.8
