@@ -2,6 +2,7 @@
 via Base.metadata — models themselves never import this file."""
 from app.db.base_class import Base  # noqa
 from app.models.appointment import Appointment  # noqa
+from app.models.availability import DoctorAvailability  # noqa
 from app.models.chat import ChatConversation, ChatMessage  # noqa
 from app.models.audit_log import AuditLog  # noqa
 from app.models.doctor import Doctor  # noqa

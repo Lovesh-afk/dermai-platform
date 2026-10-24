@@ -118,3 +118,19 @@ def create_super_admin_and_login(client, email="super@example.com", password="st
 
     login_resp = client.post("/api/v1/auth/login", json={"email": email, "password": password})
     return login_resp.json()["access_token"]
+
+
+def slot_at(days_ahead: int = 1, index: int = 0):
+    """A guaranteed-bookable appointment time under the default hours
+    (Mon-Fri 09:00-17:00, Asia/Kolkata): the first weekday at least
+    `days_ahead` days from now, at 09:00 + index x 30 min (index 0-15).
+    Returned as a UTC datetime, like the API stores it."""
+    from datetime import datetime, time, timedelta, timezone
+    from zoneinfo import ZoneInfo
+
+    zone = ZoneInfo("Asia/Kolkata")
+    day = datetime.now(zone).date() + timedelta(days=days_ahead)
+    while day.weekday() >= 5:  # skip Saturday/Sunday
+        day += timedelta(days=1)
+    local = datetime.combine(day, time(9, 0), tzinfo=zone) + timedelta(minutes=30 * index)
+    return local.astimezone(timezone.utc)

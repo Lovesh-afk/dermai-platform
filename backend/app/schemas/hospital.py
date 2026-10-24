@@ -1,5 +1,7 @@
 import re
 
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+
 from pydantic import BaseModel, Field, field_validator
 
 from app.schemas.common import UUIDStr
@@ -25,6 +27,7 @@ class HospitalOut(BaseModel):
     slug: str
     subscription_tier: str
     is_active: bool
+    timezone: str
 
     model_config = {"from_attributes": True}
 
@@ -34,3 +37,14 @@ class HospitalUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=255)
     subscription_tier: str | None = Field(default=None, max_length=50)
     is_active: bool | None = None
+    timezone: str | None = Field(default=None, max_length=64)  # IANA name, e.g. "Asia/Kolkata"
+
+    @field_validator("timezone")
+    @classmethod
+    def validate_timezone(cls, v: str | None) -> str | None:
+        if v is not None:
+            try:
+                ZoneInfo(v)
+            except (ZoneInfoNotFoundError, ValueError):
+                raise ValueError("Unknown time zone; use an IANA name like 'Asia/Kolkata'")
+        return v

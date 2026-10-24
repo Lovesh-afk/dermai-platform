@@ -16,3 +16,6 @@ class Hospital(Base, UUIDPKMixin, TimestampMixin):
     slug: Mapped[str] = mapped_column(String(100), unique=True, nullable=False, index=True)
     subscription_tier: Mapped[str] = mapped_column(String(50), default="trial")
     is_active: Mapped[bool] = mapped_column(default=True)
+    # Working hours and slots are interpreted in this zone; appointments
+    # themselves are always stored in UTC.
+    timezone: Mapped[str] = mapped_column(String(64), nullable=False, default="Asia/Kolkata", server_default="Asia/Kolkata")

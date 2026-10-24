@@ -4,7 +4,7 @@ since this is the first phase with actual API routes to verify (auth
 headers, status codes, request/response shapes, cross-cutting 401s)."""
 import io
 
-from tests.conftest import register_and_login
+from tests.conftest import register_and_login, slot_at
 
 
 def auth_headers(token):
@@ -197,7 +197,7 @@ def test_full_booking_flow_end_to_end(client):
     # Patient books an appointment
     book_resp = client.post(
         "/api/v1/appointments",
-        json={"doctor_id": doctor_id, "scheduled_at": "2027-03-01T10:00:00Z", "reason": "Suspicious mole"},
+        json={"doctor_id": doctor_id, "scheduled_at": slot_at(index=0).isoformat(), "reason": "Suspicious mole"},
         headers=auth_headers(patient_token),
     )
     assert book_resp.status_code == 201

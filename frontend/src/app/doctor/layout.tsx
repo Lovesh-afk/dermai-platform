@@ -10,6 +10,7 @@ import { Spinner } from "@/components/ui";
 const navItems = [
   { href: "/doctor", label: "Queue", icon: icons.home },
   { href: "/doctor/patients", label: "My patients", icon: icons.users },
+  { href: "/doctor/schedule", label: "My hours", icon: icons.calendar },
   { href: "/doctor/profile", label: "My profile", icon: icons.user },
 ];
 

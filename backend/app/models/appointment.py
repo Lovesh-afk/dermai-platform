@@ -12,7 +12,7 @@ import uuid
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import DateTime, Enum, ForeignKey, String
+from sqlalchemy import DateTime, Enum, ForeignKey, Index, String, text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -27,8 +27,22 @@ class AppointmentStatus(str, enum.Enum):
     NO_SHOW = "no_show"
 
 
+# Statuses that occupy a slot. Stored by enum NAME ("PENDING"), which is
+# what the partial index below must match.
+_ACTIVE_STATUSES_SQL = "status IN ('PENDING', 'CONFIRMED')"
+
+
 class Appointment(Base, UUIDPKMixin, TimestampMixin):
     __tablename__ = "appointments"
+    __table_args__ = (
+        # One active booking per doctor per time. The app checks this too,
+        # but only the database can stop two simultaneous requests from
+        # both grabbing the same slot (a race condition).
+        Index(
+            "uq_appointments_doctor_active_slot", "doctor_id", "scheduled_at", unique=True,
+            postgresql_where=text(_ACTIVE_STATUSES_SQL), sqlite_where=text(_ACTIVE_STATUSES_SQL),
+        ),
+    )
 
     hospital_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("hospitals.id"), nullable=False, index=True)
     patient_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("patients.id"), nullable=False, index=True)

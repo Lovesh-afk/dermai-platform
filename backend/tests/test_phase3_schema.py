@@ -7,6 +7,8 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
+from tests.conftest import slot_at
+
 from app.core.exceptions import AlreadyExistsError, NotFoundError
 from app.models.appointment import AppointmentStatus
 from app.models.hospital import Hospital
@@ -129,7 +131,7 @@ def test_book_appointment_success(db_session):
     hospital = _seed_hospital_and_roles(db_session)
     patient, doctor = _make_patient_and_doctor(db_session, hospital)
 
-    slot = datetime.now(timezone.utc) + timedelta(days=1)
+    slot = slot_at(days_ahead=1)
     appointment = appointment_service.book_appointment(
         db_session, patient, AppointmentCreate(doctor_id=str(doctor.id), scheduled_at=slot, reason="Skin rash")
     )
@@ -145,7 +147,7 @@ def test_book_appointment_with_unavailable_doctor_raises(db_session):
     db_session.add(doctor)
     db_session.commit()
 
-    slot = datetime.now(timezone.utc) + timedelta(days=1)
+    slot = slot_at(days_ahead=1)
     with pytest.raises(DoctorUnavailableError):
         appointment_service.book_appointment(db_session, patient, AppointmentCreate(doctor_id=str(doctor.id), scheduled_at=slot))
 
@@ -153,7 +155,7 @@ def test_book_appointment_with_unavailable_doctor_raises(db_session):
 def test_double_booking_same_slot_raises(db_session):
     hospital = _seed_hospital_and_roles(db_session)
     patient, doctor = _make_patient_and_doctor(db_session, hospital)
-    slot = datetime.now(timezone.utc) + timedelta(days=2)
+    slot = slot_at(days_ahead=2)
 
     appointment_service.book_appointment(db_session, patient, AppointmentCreate(doctor_id=str(doctor.id), scheduled_at=slot))
 
@@ -164,7 +166,7 @@ def test_double_booking_same_slot_raises(db_session):
 def test_cancel_appointment_frees_the_slot(db_session):
     hospital = _seed_hospital_and_roles(db_session)
     patient, doctor = _make_patient_and_doctor(db_session, hospital)
-    slot = datetime.now(timezone.utc) + timedelta(days=3)
+    slot = slot_at(days_ahead=3)
 
     appointment = appointment_service.book_appointment(db_session, patient, AppointmentCreate(doctor_id=str(doctor.id), scheduled_at=slot))
     appointment_service.cancel_appointment(db_session, appointment.id, "Patient rescheduled", patient.user_id)
@@ -177,7 +179,7 @@ def test_cancel_appointment_frees_the_slot(db_session):
 def test_list_appointments_for_patient_and_doctor(db_session):
     hospital = _seed_hospital_and_roles(db_session)
     patient, doctor = _make_patient_and_doctor(db_session, hospital)
-    slot = datetime.now(timezone.utc) + timedelta(days=4)
+    slot = slot_at(days_ahead=4)
     appointment_service.book_appointment(db_session, patient, AppointmentCreate(doctor_id=str(doctor.id), scheduled_at=slot))
 
     assert len(appointment_service.list_appointments_for_patient(db_session, patient.id)) == 1
@@ -192,7 +194,7 @@ def test_create_medical_record_success(db_session):
 
     # Doctor needs a shared appointment with the patient before they're
     # allowed to write a record for them (RBAC — see get_patient_for_doctor)
-    slot = datetime.now(timezone.utc) + timedelta(days=1)
+    slot = slot_at(days_ahead=1)
     appointment_service.book_appointment(db_session, patient, AppointmentCreate(doctor_id=str(doctor.id), scheduled_at=slot))
 
     record = medical_record_service.create_medical_record(
@@ -237,7 +239,7 @@ def test_booking_an_appointment_writes_an_audit_log_entry(db_session):
 
     hospital = _seed_hospital_and_roles(db_session)
     patient, doctor = _make_patient_and_doctor(db_session, hospital)
-    slot = datetime.now(timezone.utc) + timedelta(days=5)
+    slot = slot_at(days_ahead=5)
 
     appointment_service.book_appointment(db_session, patient, AppointmentCreate(doctor_id=str(doctor.id), scheduled_at=slot))
 

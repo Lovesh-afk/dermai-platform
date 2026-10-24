@@ -5,6 +5,7 @@ logged-in user, same "operate on my own data only" rule used
 throughout the app — a doctor can never pass another doctor's ID to
 see their queue."""
 import uuid
+from datetime import timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
@@ -14,11 +15,12 @@ from app.core.exceptions import AlreadyExistsError, NotFoundError, PermissionDen
 from app.db.session import get_db
 from app.models.user import User
 from app.schemas.appointment import AppointmentOut
+from app.schemas.availability import DoctorSlotsOut, Slot, SlotDay, WeeklyHoursIn, WeeklyHoursOut, WorkingHoursBlock
 from app.schemas.doctor import DoctorProfileCreate, DoctorProfileOut, DoctorProfileUpdate
 from app.schemas.medical_record import MedicalRecordOut
 from app.schemas.patient import PatientProfileOut
 from app.schemas.skin_image import SkinImageOut
-from app.services import appointment_service, doctor_service, medical_record_service, patient_service, skin_image_service
+from app.services import appointment_service, doctor_service, medical_record_service, patient_service, scheduling_service, skin_image_service
 
 router = APIRouter(prefix="/doctors", tags=["doctors"])
 
@@ -87,6 +89,49 @@ def get_my_patient_images(patient_id: str, current_user: User = Depends(get_curr
 def get_my_created_records(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     doctor = _require_doctor_profile(db, current_user)
     return medical_record_service.list_records_by_doctor(db, doctor.id)
+
+
+@router.get("/me/availability", response_model=WeeklyHoursOut)
+def get_my_hours(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    doctor = _require_doctor_profile(db, current_user)
+    return _hours_out(db, doctor)
+
+
+@router.put("/me/availability", response_model=WeeklyHoursOut)
+def set_my_hours(payload: WeeklyHoursIn, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Replaces the weekly schedule. Existing bookings are kept even if
+    they now fall outside the new hours; the doctor can cancel them."""
+    doctor = _require_doctor_profile(db, current_user)
+    scheduling_service.set_weekly_hours(db, doctor, [(b.weekday, b.start_time, b.end_time) for b in payload.blocks])
+    return _hours_out(db, doctor)
+
+
+@router.get("/{doctor_id}/slots", response_model=DoctorSlotsOut)
+def get_doctor_slots(doctor_id: str, days: int = Query(14, ge=1, le=scheduling_service.MAX_SLOT_DAYS), db: Session = Depends(get_db)):
+    """Open 30-minute slots for the next `days` days. Empty if the doctor
+    isn't currently accepting appointments."""
+    try:
+        doctor = doctor_service.get_doctor_by_id(db, uuid.UUID(doctor_id))
+    except (NotFoundError, ValueError):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Doctor not found")
+    zone = scheduling_service.hospital_zone(db, doctor)
+    days_out = []
+    if doctor.is_accepting_appointments:
+        days_out = [
+            SlotDay(date=d, slots=[Slot(start=t.astimezone(timezone.utc), label=t.strftime("%H:%M")) for t in slots])
+            for d, slots in scheduling_service.available_slots(db, doctor, days)
+        ]
+    return DoctorSlotsOut(doctor_id=doctor.id, timezone=zone.key, slot_minutes=scheduling_service.SLOT_MINUTES, days=days_out)
+
+
+def _hours_out(db: Session, doctor) -> WeeklyHoursOut:
+    blocks, is_default = scheduling_service.get_weekly_hours(db, doctor)
+    return WeeklyHoursOut(
+        is_default=is_default,
+        timezone=scheduling_service.hospital_zone(db, doctor).key,
+        slot_minutes=scheduling_service.SLOT_MINUTES,
+        blocks=[WorkingHoursBlock(weekday=w, start_time=st, end_time=et) for w, st, et in blocks],
+    )
 
 
 @router.get("", response_model=list[DoctorProfileOut])

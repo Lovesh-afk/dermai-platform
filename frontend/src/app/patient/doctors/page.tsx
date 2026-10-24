@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { hospitalApi, doctorApi, appointmentApi, patientApi, HospitalOut, DoctorProfile, ApiError, Condition, Recommendations } from "@/lib/api";
+import { hospitalApi, doctorApi, appointmentApi, patientApi, HospitalOut, DoctorProfile, ApiError, Condition, Recommendations, DoctorSlots } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { Card, Button, Select, Field, Input, Alert, Spinner, EmptyState } from "@/components/ui";
 
@@ -97,21 +97,41 @@ export default function FindDoctorPage() {
 }
 
 function BookingModal({ doctor, token, onClose }: { doctor: DoctorProfile; token: string; onClose: () => void }) {
-  const [dateTime, setDateTime] = useState("");
+  const [slots, setSlots] = useState<DoctorSlots | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [dayIndex, setDayIndex] = useState(0);
+  const [selected, setSelected] = useState<string | null>(null); // slot start (UTC ISO)
   const [reason, setReason] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
+  function loadSlots() {
+    doctorApi
+      .slots(doctor.id)
+      .then((data) => setSlots(data))
+      .catch(() => setLoadError("Couldn't load this doctor's available times."));
+  }
+
+  useEffect(loadSlots, [doctor.id]);
+
+  // Only days that still have open slots are offered
+  const openDays = slots?.days.filter((d) => d.slots.length > 0) ?? [];
+  const day = openDays[dayIndex];
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!selected) return;
     setSubmitting(true);
     setError(null);
     try {
-      await appointmentApi.book(token, { doctor_id: doctor.id, scheduled_at: new Date(dateTime).toISOString(), reason: reason || undefined });
+      await appointmentApi.book(token, { doctor_id: doctor.id, scheduled_at: selected, reason: reason || undefined });
       setSuccess(true);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Couldn't book that slot.");
+      // Most likely someone else just took it: refresh so it disappears
+      setSelected(null);
+      loadSlots();
     } finally {
       setSubmitting(false);
     }
@@ -119,7 +139,7 @@ function BookingModal({ doctor, token, onClose }: { doctor: DoctorProfile; token
 
   return (
     <div className="fixed inset-0 z-10 flex items-center justify-center bg-ink/30 px-6" onClick={onClose}>
-      <Card className="w-full max-w-sm" >
+      <Card className="w-full max-w-lg">
         <div onClick={(e) => e.stopPropagation()}>
           {success ? (
             <>
@@ -129,17 +149,62 @@ function BookingModal({ doctor, token, onClose }: { doctor: DoctorProfile; token
             </>
           ) : (
             <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-              <p className="font-display text-xl text-ink">Book with {doctorName(doctor)}</p>
-              <Field label="Date and time">
-                <Input type="datetime-local" required value={dateTime} onChange={(e) => setDateTime(e.target.value)} />
-              </Field>
+              <div>
+                <p className="font-display text-xl text-ink">Book with {doctorName(doctor)}</p>
+                {slots && <p className="text-xs text-ink-soft">Times shown in {slots.timezone}</p>}
+              </div>
+
+              {loadError ? (
+                <Alert>{loadError}</Alert>
+              ) : !slots ? (
+                <Spinner className="h-5 w-5 text-pine-600" />
+              ) : openDays.length === 0 ? (
+                <Alert>This doctor has no open slots in the next two weeks. Please try another doctor.</Alert>
+              ) : (
+                <>
+                  <div className="flex gap-2 overflow-x-auto pb-1" role="group" aria-label="Choose a day">
+                    {openDays.map((d, i) => {
+                      const date = new Date(`${d.date}T00:00:00`);
+                      return (
+                        <button
+                          key={d.date}
+                          type="button"
+                          aria-pressed={i === dayIndex}
+                          onClick={() => { setDayIndex(i); setSelected(null); }}
+                          className={`shrink-0 rounded-lg px-3 py-2 text-center text-xs ${i === dayIndex ? "bg-pine-600 text-porcelain" : "bg-sage-100 text-ink hover:bg-sage-200"}`}
+                        >
+                          <span className="block font-medium">{date.toLocaleDateString(undefined, { weekday: "short" })}</span>
+                          {date.toLocaleDateString(undefined, { day: "numeric", month: "short" })}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <div className="grid grid-cols-4 gap-2" role="group" aria-label="Choose a time">
+                    {day?.slots.map((slot) => (
+                      <button
+                        key={slot.start}
+                        type="button"
+                        aria-pressed={selected === slot.start}
+                        onClick={() => setSelected(slot.start)}
+                        className={`rounded-lg border px-2 py-1.5 text-sm ${selected === slot.start ? "border-pine-600 bg-pine-600 text-porcelain" : "border-sage-200 text-ink hover:border-pine-600"}`}
+                      >
+                        {slot.label}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+
               <Field label="Reason (optional)">
                 <Input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="e.g. Suspicious mole" />
               </Field>
               {error && <Alert>{error}</Alert>}
               <div className="flex gap-2">
                 <Button type="button" variant="secondary" className="flex-1" onClick={onClose}>Cancel</Button>
-                <Button type="submit" disabled={submitting} className="flex-1">{submitting ? "Booking…" : "Book"}</Button>
+                <Button type="submit" disabled={submitting || !selected} className="flex-1">
+                  {submitting ? "Booking…" : "Book"}
+                </Button>
               </div>
             </form>
           )}

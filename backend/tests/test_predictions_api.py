@@ -10,7 +10,7 @@ import io
 
 import pytest
 
-from tests.conftest import register_and_login
+from tests.conftest import register_and_login, slot_at
 
 
 def auth(token):
@@ -209,7 +209,7 @@ def test_doctor_with_shared_appointment_sees_patient_ai_results(client, fake_inf
     patient_token, image = _patient_with_image(client)
     _run_worker(image["id"])
     doctor_token, doctor_id = _doctor(client, hospital_id, "ai-doc@example.com", "LIC-AI-1")
-    client.post("/api/v1/appointments", json={"doctor_id": doctor_id, "scheduled_at": "2027-06-01T10:00:00Z"}, headers=auth(patient_token))
+    client.post("/api/v1/appointments", json={"doctor_id": doctor_id, "scheduled_at": slot_at(index=0).isoformat()}, headers=auth(patient_token))
     patient_id = client.get("/api/v1/patients/me", headers=auth(patient_token)).json()["id"]
 
     resp = client.get(f"/api/v1/doctors/me/patients/{patient_id}/images", headers=auth(doctor_token))

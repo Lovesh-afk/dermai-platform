@@ -181,6 +181,27 @@ export type SkinImageStatus = "uploaded" | "queued_for_analysis" | "analyzed" | 
 
 export type Condition = "acne" | "eczema" | "fungal";
 
+// --- Scheduling (Phase 11) ---
+export interface WorkingHoursBlock {
+  weekday: number; // 0 = Monday ... 6 = Sunday
+  start_time: string; // "09:00" when sending; the API returns "09:00:00"
+  end_time: string;
+}
+
+export interface WeeklyHours {
+  is_default: boolean; // true = doctor hasn't set hours, defaults apply
+  timezone: string;
+  slot_minutes: number;
+  blocks: WorkingHoursBlock[];
+}
+
+export interface DoctorSlots {
+  doctor_id: string;
+  timezone: string;
+  slot_minutes: number;
+  days: { date: string; slots: { start: string; label: string }[] }[];
+}
+
 export interface RecommendedDoctor {
   doctor: DoctorProfile;
   hospital_name: string;
@@ -311,6 +332,14 @@ export const patientApi = {
 // ---------------------------------------------------------------------------
 
 export const doctorApi = {
+  getMyHours: (token: string) => authed<WeeklyHours>("/doctors/me/availability", token),
+
+  /** Replaces the weekly schedule; an empty list restores default hours. */
+  setMyHours: (token: string, blocks: WorkingHoursBlock[]) =>
+    authed<WeeklyHours>("/doctors/me/availability", token, { method: "PUT", body: JSON.stringify({ blocks }) }),
+
+  slots: (doctorId: string, days = 14) => request<DoctorSlots>(`/doctors/${doctorId}/slots?days=${days}`),
+
   createProfile: (token: string, data: { hospital_id: string; specialization?: string; license_number: string; years_experience?: number; consultation_fee?: number; bio?: string }) =>
     authed<DoctorProfile>("/doctors/me", token, { method: "POST", body: JSON.stringify(data) }),
 

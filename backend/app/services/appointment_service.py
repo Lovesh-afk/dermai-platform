@@ -2,6 +2,7 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.exceptions import AppError, NotFoundError, PermissionDeniedError
@@ -9,6 +10,7 @@ from app.models.appointment import Appointment, AppointmentStatus
 from app.models.doctor import Doctor
 from app.models.patient import Patient
 from app.schemas.appointment import AppointmentCreate
+from app.services import scheduling_service
 from app.services.audit_service import log_audit_event
 
 
@@ -20,6 +22,10 @@ class SlotConflictError(AppError):
     pass
 
 
+class SlotUnavailableError(AppError):
+    """Outside working hours, misaligned, or in the past."""
+
+
 def book_appointment(db: Session, patient: Patient, payload: AppointmentCreate) -> Appointment:
     doctor_id = uuid.UUID(payload.doctor_id)
     doctor = db.get(Doctor, doctor_id)
@@ -28,30 +34,32 @@ def book_appointment(db: Session, patient: Patient, payload: AppointmentCreate) 
     if not doctor.is_accepting_appointments:
         raise DoctorUnavailableError("This doctor is not currently accepting appointments")
 
-    # Simple double-booking guard: same doctor, same exact timestamp,
-    # not already cancelled. A real scheduling system (slot durations,
-    # buffer times) is a reasonable Phase 11 enhancement — this is the
-    # minimum needed so the schema itself enforces something meaningful.
-    conflict = db.execute(
-        select(Appointment).where(
-            Appointment.doctor_id == doctor_id,
-            Appointment.scheduled_at == payload.scheduled_at,
-            Appointment.status.notin_([AppointmentStatus.CANCELLED]),
-        )
-    ).scalar_one_or_none()
-    if conflict:
-        raise SlotConflictError("This doctor already has an appointment at that time")
+    # Always store UTC, whatever offset the client sent
+    scheduled_at = scheduling_service._utc(payload.scheduled_at)
+
+    problem = scheduling_service.booking_problem(db, doctor, scheduled_at)
+    if problem:
+        raise SlotUnavailableError(problem)
+
+    if _slot_is_taken(db, doctor_id, scheduled_at):
+        raise SlotConflictError("Sorry, that slot was just booked. Please choose another time.")
 
     appointment = Appointment(
         hospital_id=doctor.hospital_id,
         patient_id=patient.id,
         doctor_id=doctor_id,
-        scheduled_at=payload.scheduled_at,
+        scheduled_at=scheduled_at,
         reason=payload.reason,
         status=AppointmentStatus.PENDING,
     )
     db.add(appointment)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        # Lost a race: another request booked this slot between our check
+        # and our insert. The unique index on appointments caught it.
+        db.rollback()
+        raise SlotConflictError("Sorry, that slot was just booked. Please choose another time.")
     db.refresh(appointment)
 
     log_audit_event(
@@ -59,6 +67,16 @@ def book_appointment(db: Session, patient: Patient, payload: AppointmentCreate) 
         resource_type="Appointment", resource_id=str(appointment.id),
     )
     return appointment
+
+
+def _slot_is_taken(db: Session, doctor_id: uuid.UUID, scheduled_at) -> bool:
+    return db.execute(
+        select(Appointment.id).where(
+            Appointment.doctor_id == doctor_id,
+            Appointment.scheduled_at == scheduled_at,
+            Appointment.status.in_(scheduling_service.ACTIVE_STATUSES),
+        )
+    ).first() is not None
 
 
 def cancel_appointment(db: Session, appointment_id: uuid.UUID, cancellation_reason: str | None, cancelling_user_id: uuid.UUID) -> Appointment:

@@ -5,7 +5,7 @@ to have a subtle bug and least likely to be caught by "does it run"
 manual testing."""
 import pytest
 
-from tests.conftest import register_and_login
+from tests.conftest import register_and_login, slot_at
 
 
 def auth_headers(token):
@@ -71,7 +71,7 @@ def test_doctor_sees_booked_appointment_in_queue(client):
 
     client.post(
         "/api/v1/appointments",
-        json={"doctor_id": doctor_id, "scheduled_at": "2027-04-01T09:00:00Z"},
+        json={"doctor_id": doctor_id, "scheduled_at": slot_at(index=0).isoformat()},
         headers=auth_headers(patient_token),
     )
 
@@ -86,7 +86,7 @@ def test_doctor_can_confirm_and_complete_appointment(client):
 
     book_resp = client.post(
         "/api/v1/appointments",
-        json={"doctor_id": doctor_id, "scheduled_at": "2027-04-02T09:00:00Z"},
+        json={"doctor_id": doctor_id, "scheduled_at": slot_at(index=1).isoformat()},
         headers=auth_headers(patient_token),
     )
     appointment_id = book_resp.json()["id"]
@@ -111,7 +111,7 @@ def test_patient_cannot_update_appointment_status(client):
 
     book_resp = client.post(
         "/api/v1/appointments",
-        json={"doctor_id": doctor_id, "scheduled_at": "2027-04-03T09:00:00Z"},
+        json={"doctor_id": doctor_id, "scheduled_at": slot_at(index=2).isoformat()},
         headers=auth_headers(patient_token),
     )
     appointment_id = book_resp.json()["id"]
@@ -138,7 +138,7 @@ def test_doctor_cannot_update_another_doctors_appointment(client):
 
     book_resp = client.post(
         "/api/v1/appointments",
-        json={"doctor_id": doctor_a_id, "scheduled_at": "2027-04-04T09:00:00Z"},
+        json={"doctor_id": doctor_a_id, "scheduled_at": slot_at(index=3).isoformat()},
         headers=auth_headers(patient_token),
     )
     appointment_id = book_resp.json()["id"]
@@ -155,7 +155,7 @@ def test_doctor_sees_patient_after_shared_appointment(client):
 
     client.post(
         "/api/v1/appointments",
-        json={"doctor_id": doctor_id, "scheduled_at": "2027-04-05T09:00:00Z"},
+        json={"doctor_id": doctor_id, "scheduled_at": slot_at(index=4).isoformat()},
         headers=auth_headers(patient_token),
     )
 
@@ -190,7 +190,7 @@ def test_doctor_can_create_medical_record_for_shared_patient(client):
 
     client.post(
         "/api/v1/appointments",
-        json={"doctor_id": doctor_id, "scheduled_at": "2027-04-06T09:00:00Z"},
+        json={"doctor_id": doctor_id, "scheduled_at": slot_at(index=5).isoformat()},
         headers=auth_headers(patient_token),
     )
     patient_profile = client.get("/api/v1/patients/me", headers=auth_headers(patient_token)).json()

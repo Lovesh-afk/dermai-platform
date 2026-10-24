@@ -1,7 +1,7 @@
 """Phase 10 — doctor recommendations: ranking, reasons, filters, scoping."""
 from datetime import datetime, timedelta, timezone
 
-from tests.conftest import register_and_login
+from tests.conftest import register_and_login, slot_at
 
 
 def auth(token):
@@ -131,7 +131,7 @@ def test_busy_doctor_ranks_below_available_one(client):
     _doctor(client, "busy-clinic", hid, "free@example.com", "Dr Free", years_experience=10)
     for i in range(5):  # five other patients fill Dr Busy's next two weeks
         t = _patient(client, email=f"filler{i}@example.com")
-        when = (datetime.now(timezone.utc) + timedelta(days=1, hours=i)).isoformat()
+        when = slot_at(days_ahead=1, index=i).isoformat()
         assert client.post("/api/v1/appointments", json={"doctor_id": busy_id, "scheduled_at": when}, headers=auth(t)).status_code == 201
 
     token = _patient(client)
@@ -145,7 +145,7 @@ def test_previous_doctor_gets_continuity_boost(client):
     seen_id = _doctor(client, "cont-clinic", hid, "seen@example.com", "Dr Seen")
     _doctor(client, "cont-clinic", hid, "new@example.com", "Dr New")
     token = _patient(client)
-    past = (datetime.now(timezone.utc) + timedelta(days=30)).isoformat()  # outside the 2-week busy window
+    past = slot_at(days_ahead=30).isoformat()  # outside the 2-week busy window
     client.post("/api/v1/appointments", json={"doctor_id": seen_id, "scheduled_at": past}, headers=auth(token))
 
     top = _recommend(client, token).json()["doctors"][0]

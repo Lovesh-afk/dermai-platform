@@ -12,7 +12,7 @@ from app.db.session import get_db
 from app.models.user import User
 from app.schemas.appointment import AppointmentCancel, AppointmentCreate, AppointmentOut, AppointmentStatusUpdate
 from app.services import appointment_service, doctor_service, patient_service
-from app.services.appointment_service import DoctorUnavailableError, SlotConflictError
+from app.services.appointment_service import DoctorUnavailableError, SlotConflictError, SlotUnavailableError
 
 router = APIRouter(prefix="/appointments", tags=["appointments"])
 
@@ -28,7 +28,7 @@ def book_appointment(payload: AppointmentCreate, current_user: User = Depends(ge
         return appointment_service.book_appointment(db, patient, payload)
     except NotFoundError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
-    except DoctorUnavailableError as e:
+    except (DoctorUnavailableError, SlotUnavailableError) as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except SlotConflictError as e:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
