@@ -6,7 +6,7 @@ viewing a specific patient) is a Phase 5 (Doctor Portal) concern with
 its own RBAC checks — deliberately not mixed in here."""
 import uuid
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_user
@@ -16,8 +16,9 @@ from app.models.user import User
 from app.schemas.appointment import AppointmentOut
 from app.schemas.medical_record import MedicalRecordOut
 from app.schemas.patient import PatientProfileCreate, PatientProfileOut, PatientProfileUpdate
+from app.schemas.recommendation import Condition, RecommendationsOut
 from app.schemas.skin_image import SkinImageOut
-from app.services import appointment_service, patient_service, prediction_service, skin_image_service
+from app.services import appointment_service, patient_service, prediction_service, recommendation_service, skin_image_service
 from app.services.prediction_service import AnalysisNotAllowedError
 from app.services.medical_record_service import list_records_for_patient
 from app.services.skin_image_service import ImageTooLargeError, UnsupportedImageTypeError
@@ -97,6 +98,29 @@ def analyze_my_image(image_id: str, current_user: User = Depends(get_current_use
 def get_my_images(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     patient = _require_patient_profile(db, current_user)
     return skin_image_service.list_images_for_patient(db, patient.id)
+
+
+@router.get("/me/recommended-doctors", response_model=RecommendationsOut)
+def get_recommended_doctors(
+    condition: Condition | None = Query(None, description="Override; defaults to the latest photo analysis"),
+    use_photo: bool = Query(True, description="False = ignore the photo analysis and rank without a condition"),
+    max_fee: float | None = Query(None, ge=0),
+    limit: int = Query(5, ge=1, le=20),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    patient = _require_patient_profile(db, current_user)
+    source = "selected" if condition else None
+    if condition is None and use_photo:
+        condition = recommendation_service.latest_photo_condition(db, patient)
+        source = "photo" if condition else None
+
+    recs = recommendation_service.recommend_doctors(db, patient, current_user, condition, max_fee, limit)
+    return RecommendationsOut(
+        condition=condition,
+        condition_source=source,
+        doctors=[{"doctor": r.doctor, "hospital_name": r.hospital_name, "score": r.score, "reasons": r.reasons} for r in recs],
+    )
 
 
 def _require_patient_profile(db: Session, user: User):

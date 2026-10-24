@@ -14,6 +14,7 @@ class DoctorProfileCreate(BaseModel):
 class DoctorProfileOut(BaseModel):
     id: UUIDStr
     user_id: UUIDStr
+    full_name: str | None = None
     hospital_id: UUIDStr
     specialization: str
     license_number: str

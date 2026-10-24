@@ -143,6 +143,7 @@ export interface PatientProfile {
 export interface DoctorProfile {
   id: string;
   user_id: string;
+  full_name: string | null;
   hospital_id: string;
   specialization: string;
   license_number: string;
@@ -177,6 +178,21 @@ export interface MedicalRecord {
 }
 
 export type SkinImageStatus = "uploaded" | "queued_for_analysis" | "analyzed" | "failed";
+
+export type Condition = "acne" | "eczema" | "fungal";
+
+export interface RecommendedDoctor {
+  doctor: DoctorProfile;
+  hospital_name: string;
+  score: number; // 0-100
+  reasons: string[];
+}
+
+export interface Recommendations {
+  condition: Condition | null;
+  condition_source: "photo" | "selected" | null;
+  doctors: RecommendedDoctor[];
+}
 
 export interface Prediction {
   predicted_class: string;
@@ -275,6 +291,14 @@ export const patientApi = {
   myImages: (token: string) => authed<SkinImage[]>("/patients/me/images", token),
 
   /** Retries analysis for an image whose last attempt failed. */
+  /** Ranked doctors with reasons. Without a condition, the server uses
+   * the patient's latest photo analysis. */
+  recommendedDoctors: (token: string, choice: Condition | "auto" | "none") => {
+    // "auto" = use latest photo analysis; "none" = rank without any condition
+    const query = choice === "auto" ? "" : choice === "none" ? "?use_photo=false" : `?condition=${choice}`;
+    return authed<Recommendations>(`/patients/me/recommended-doctors${query}`, token);
+  },
+
   analyzeImage: (token: string, imageId: string) =>
     authed<SkinImage>(`/patients/me/images/${imageId}/analyze`, token, { method: "POST" }),
 

@@ -107,7 +107,8 @@ export function AnalysisResult({
 
       {showBookingLink && (
         <Link
-          href="/patient/doctors"
+          // Passes the result along so recommendations favour doctors experienced with it
+          href={prediction.predicted_class === "normal" ? "/patient/doctors" : `/patient/doctors?condition=${prediction.predicted_class}`}
           className="inline-flex w-fit items-center rounded-full bg-pine-700 px-4 py-2 text-sm font-medium text-white hover:bg-pine-800"
         >
           Book a dermatologist

@@ -6,7 +6,7 @@ from typing import Optional
 
 from sqlalchemy import ForeignKey, Integer, Numeric, String
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base_class import Base, TimestampMixin, UUIDPKMixin
 
@@ -24,3 +24,11 @@ class Doctor(Base, UUIDPKMixin, TimestampMixin):
     bio: Mapped[Optional[str]] = mapped_column(String(2000), nullable=True)
 
     is_accepting_appointments: Mapped[bool] = mapped_column(default=True)
+
+    # The doctor's account, loaded alongside (selectin) so listing doctors
+    # with names never triggers one extra query per doctor.
+    user: Mapped["User"] = relationship("User", lazy="selectin")  # noqa: F821
+
+    @property
+    def full_name(self) -> str | None:
+        return self.user.full_name if self.user else None
