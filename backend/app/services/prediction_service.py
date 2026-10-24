@@ -16,9 +16,10 @@ from sqlalchemy.orm import Session
 
 from app.core.exceptions import AppError
 from app.core.logging import logger
+from app.models.patient import Patient
 from app.models.prediction import Prediction
 from app.models.skin_image import SkinImage, SkinImageStatus
-from app.services import inference_client, storage_service
+from app.services import inference_client, notification_service, storage_service
 from app.services.audit_service import log_audit_event
 from app.services.inference_client import InferenceServiceError
 
@@ -99,9 +100,11 @@ def run_analysis(db: Session, image_id: uuid.UUID) -> None:
         image.status = SkinImageStatus.FAILED
         image.analysis_error = safe_message
         db.commit()
+        notification_service.analysis_finished(db, db.get(Patient, image.patient_id).user_id, succeeded=False)
         return
 
     log_audit_event(
         db, action="skin_image.analyze", hospital_id=image.hospital_id,
         resource_type="SkinImage", resource_id=str(image.id),
     )
+    notification_service.analysis_finished(db, db.get(Patient, image.patient_id).user_id, succeeded=True)

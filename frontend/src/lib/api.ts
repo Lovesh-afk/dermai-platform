@@ -471,6 +471,27 @@ export const chatApi = {
     authed<void>(`/chat/conversations/${conversationId}`, token, { method: "DELETE" }),
 };
 
+// ---------------------------------------------------------------------------
+// Notifications (Phase 12)
+// ---------------------------------------------------------------------------
+
+export interface AppNotification {
+  id: string;
+  type: string;
+  title: string;
+  body: string;
+  link: string | null; // page to open when clicked
+  read_at: string | null;
+  created_at: string;
+}
+
+export const notificationApi = {
+  list: (token: string, limit = 15) => authed<AppNotification[]>(`/notifications?limit=${limit}`, token),
+  unreadCount: (token: string) => authed<{ unread: number }>("/notifications/unread-count", token),
+  markRead: (token: string, id: string) => authed<AppNotification>(`/notifications/${id}/read`, token, { method: "POST" }),
+  markAllRead: (token: string) => authed<void>("/notifications/read-all", token, { method: "POST" }),
+};
+
 export function fileUrl(path: string): string {
   return path.startsWith("http") ? path : `${API_URL}${path}`;
 }

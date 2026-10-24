@@ -12,7 +12,7 @@ from app.db.session import get_db
 from app.models.user import User
 from app.schemas.appointment import AppointmentCancel, AppointmentCreate, AppointmentOut, AppointmentStatusUpdate
 from app.services import appointment_service, doctor_service, patient_service
-from app.services.appointment_service import DoctorUnavailableError, SlotConflictError, SlotUnavailableError
+from app.services.appointment_service import DoctorUnavailableError, NotCancellableError, SlotConflictError, SlotUnavailableError
 
 router = APIRouter(prefix="/appointments", tags=["appointments"])
 
@@ -38,10 +38,12 @@ def book_appointment(payload: AppointmentCreate, current_user: User = Depends(ge
 def cancel_appointment(appointment_id: str, payload: AppointmentCancel, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     try:
         return appointment_service.cancel_appointment(
-            db, uuid.UUID(appointment_id), payload.cancellation_reason, current_user.id
+            db, uuid.UUID(appointment_id), payload.cancellation_reason, current_user
         )
-    except NotFoundError as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except (NotFoundError, ValueError):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Appointment not found")
+    except NotCancellableError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
 @router.patch("/{appointment_id}/status", response_model=AppointmentOut)

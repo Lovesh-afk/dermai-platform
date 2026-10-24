@@ -17,6 +17,20 @@ from sqlalchemy.pool import StaticPool
 from app.db.base import Base
 
 
+@pytest.fixture(autouse=True)
+def outbox(monkeypatch):
+    """Every test: emails are captured here instead of going to Celery
+    (there's no message broker in tests). Tests can inspect the list."""
+    import app.services.notification_service as notification_service
+
+    sent = []
+    monkeypatch.setattr(
+        notification_service, "enqueue_email",
+        lambda to, subject, text, html_body: sent.append({"to": to, "subject": subject, "text": text, "html": html_body}),
+    )
+    return sent
+
+
 @pytest.fixture()
 def db_session():
     engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})

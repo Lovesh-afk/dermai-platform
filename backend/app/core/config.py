@@ -37,6 +37,17 @@ class Settings(BaseSettings):
     GEMINI_MODEL: str = "gemini-2.5-flash"
     LLM_TIMEOUT_SECONDS: float = 30.0
 
+    # Email (Phase 12). With SMTP_HOST empty, emails are written to the
+    # logs instead of sent ("console mode"), so everything works with no
+    # email account. Gmail works with an app password (smtp.gmail.com:587).
+    SMTP_HOST: str = ""
+    SMTP_PORT: int = 587
+    SMTP_USER: str = ""
+    SMTP_PASSWORD: str = ""
+    EMAIL_FROM: str = "DermAI <no-reply@dermai-platform.com>"
+    # Base URL of the website, used for links inside emails
+    FRONTEND_URL: str = "http://localhost:3000"
+
     AWS_ACCESS_KEY_ID: str = ""
     AWS_SECRET_ACCESS_KEY: str = ""
     AWS_S3_BUCKET: str = ""

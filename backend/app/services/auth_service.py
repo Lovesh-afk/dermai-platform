@@ -11,6 +11,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
+from app.core.logging import logger
 from app.core.exceptions import (
     AlreadyExistsError,
     InvalidCredentialsError,
@@ -259,9 +260,26 @@ def request_password_reset(db: Session, email: str) -> PasswordResetRequestOut:
     db.add(reset)
     db.commit()
 
-    # DEV-ONLY: real email delivery is Phase 12 (Notifications). Until then
-    # the raw token is returned directly so the flow is testable end-to-end.
-    return PasswordResetRequestOut(message=generic_message, dev_reset_token=raw_token)
+    _send_reset_email(user, raw_token)
+    # Outside production the token is also returned in the response, so the
+    # flow works locally when emails are only logged (no SMTP configured).
+    dev_token = raw_token if settings.ENVIRONMENT != "production" else None
+    return PasswordResetRequestOut(message=generic_message, dev_reset_token=dev_token)
+
+
+def _send_reset_email(user: User, raw_token: str) -> None:
+    from app.services import notification_service
+
+    link = f"/reset-password?token={raw_token}"
+    message = (
+        f"We received a request to reset your DermAI password. The link below works once and expires in "
+        f"{RESET_TOKEN_EXPIRE_MINUTES} minutes. If you didn't ask for this, you can ignore this email."
+    )
+    try:
+        text, html_body = notification_service._render_email(user.full_name, message, link)
+        notification_service.enqueue_email(user.email, "DermAI: Reset your password", text, html_body)
+    except Exception as e:  # the response must look the same either way (no account enumeration)
+        logger.error("reset_email_enqueue_failed", error=str(e))
 
 
 def confirm_password_reset(db: Session, raw_token: str, new_password: str) -> None:

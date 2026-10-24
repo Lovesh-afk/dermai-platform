@@ -10,7 +10,7 @@ from app.models.appointment import Appointment, AppointmentStatus
 from app.models.doctor import Doctor
 from app.models.patient import Patient
 from app.schemas.appointment import AppointmentCreate
-from app.services import scheduling_service
+from app.services import notification_service, scheduling_service
 from app.services.audit_service import log_audit_event
 
 
@@ -24,6 +24,10 @@ class SlotConflictError(AppError):
 
 class SlotUnavailableError(AppError):
     """Outside working hours, misaligned, or in the past."""
+
+
+class NotCancellableError(AppError):
+    """Only pending or confirmed appointments can be cancelled."""
 
 
 def book_appointment(db: Session, patient: Patient, payload: AppointmentCreate) -> Appointment:
@@ -66,6 +70,7 @@ def book_appointment(db: Session, patient: Patient, payload: AppointmentCreate) 
         db, action="appointment.book", user_id=patient.user_id, hospital_id=doctor.hospital_id,
         resource_type="Appointment", resource_id=str(appointment.id),
     )
+    notification_service.appointment_booked(db, appointment)
     return appointment
 
 
@@ -79,10 +84,21 @@ def _slot_is_taken(db: Session, doctor_id: uuid.UUID, scheduled_at) -> bool:
     ).first() is not None
 
 
-def cancel_appointment(db: Session, appointment_id: uuid.UUID, cancellation_reason: str | None, cancelling_user_id: uuid.UUID) -> Appointment:
+def cancel_appointment(db: Session, appointment_id: uuid.UUID, cancellation_reason: str | None, cancelling_user) -> Appointment:
+    """Either party can cancel: the appointment's own patient or doctor.
+    Anyone else gets "not found", so appointment IDs can't be probed.
+    (Before Phase 12 there was no ownership check at all, so any logged-in
+    user could cancel any appointment by ID.)"""
     appointment = db.get(Appointment, appointment_id)
     if not appointment:
         raise NotFoundError("Appointment not found")
+
+    patient = db.get(Patient, appointment.patient_id)
+    doctor = db.get(Doctor, appointment.doctor_id)
+    if cancelling_user.id not in (patient.user_id, doctor.user_id):
+        raise NotFoundError("Appointment not found")
+    if appointment.status not in scheduling_service.ACTIVE_STATUSES:
+        raise NotCancellableError(f"A {appointment.status.value.replace('_', ' ')} appointment can't be cancelled.")
 
     appointment.status = AppointmentStatus.CANCELLED
     appointment.cancellation_reason = cancellation_reason
@@ -91,9 +107,10 @@ def cancel_appointment(db: Session, appointment_id: uuid.UUID, cancellation_reas
     db.refresh(appointment)
 
     log_audit_event(
-        db, action="appointment.cancel", user_id=cancelling_user_id, hospital_id=appointment.hospital_id,
+        db, action="appointment.cancel", user_id=cancelling_user.id, hospital_id=appointment.hospital_id,
         resource_type="Appointment", resource_id=str(appointment.id),
     )
+    notification_service.appointment_cancelled(db, appointment, cancelling_user)
     return appointment
 
 
@@ -124,6 +141,7 @@ def update_appointment_status(db: Session, appointment_id: uuid.UUID, new_status
         db, action="appointment.status_update", user_id=doctor.user_id, hospital_id=appointment.hospital_id,
         resource_type="Appointment", resource_id=str(appointment.id), metadata={"new_status": new_status.value},
     )
+    notification_service.appointment_status_changed(db, appointment)
     return appointment
 
 

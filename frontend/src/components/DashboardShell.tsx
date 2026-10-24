@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { NotificationBell } from "@/components/NotificationBell";
 import { usePathname } from "next/navigation";
 import { ReactNode } from "react";
 import { useAuth } from "@/lib/auth";
@@ -69,10 +70,13 @@ export function DashboardShell({ navItems, children }: { navItems: NavItem[]; ch
   return (
     <div className="flex min-h-screen">
       <aside className="texture-dots flex w-64 shrink-0 flex-col border-r border-sage-100 bg-sage-50/60 px-5 py-6">
-        <Link href="/" className="mb-8 flex items-center gap-2 px-1">
-          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-pine-600 font-display text-sm text-porcelain">D</span>
-          <span className="font-display text-lg tracking-tight text-ink">DermAI</span>
-        </Link>
+        <div className="mb-8 flex items-center justify-between px-1">
+          <Link href="/" className="flex items-center gap-2">
+            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-pine-600 font-display text-sm text-porcelain">D</span>
+            <span className="font-display text-lg tracking-tight text-ink">DermAI</span>
+          </Link>
+          <NotificationBell />
+        </div>
 
         <nav className="flex flex-1 flex-col gap-1">
           {navItems.map((item) => {

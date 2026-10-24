@@ -54,3 +54,5 @@ class Appointment(Base, UUIDPKMixin, TimestampMixin):
     )
     reason: Mapped[Optional[str]] = mapped_column(String(1000), nullable=True)
     cancellation_reason: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    # Set once the 24-hour reminder has gone out, so it's never sent twice
+    reminder_sent_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)

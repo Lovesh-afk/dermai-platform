@@ -8,6 +8,7 @@ from app.models.audit_log import AuditLog  # noqa
 from app.models.doctor import Doctor  # noqa
 from app.models.hospital import Hospital  # noqa
 from app.models.medical_record import MedicalRecord  # noqa
+from app.models.notification import Notification  # noqa
 from app.models.password_reset_token import PasswordResetToken  # noqa
 from app.models.patient import Patient  # noqa
 from app.models.prediction import Prediction  # noqa

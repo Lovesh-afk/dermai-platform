@@ -8,6 +8,7 @@ from app.models.doctor import Doctor
 from app.models.medical_record import MedicalRecord
 from app.models.patient import Patient
 from app.schemas.medical_record import MedicalRecordCreate
+from app.services import notification_service
 from app.services.audit_service import log_audit_event
 from app.services.patient_service import get_patient_for_doctor
 
@@ -38,6 +39,7 @@ def create_medical_record(db: Session, payload: MedicalRecordCreate, doctor: Doc
         db, action="medical_record.create", user_id=doctor.user_id, hospital_id=record.hospital_id,
         resource_type="MedicalRecord", resource_id=str(record.id),
     )
+    notification_service.medical_record_added(db, patient, doctor)
     return record
 
 

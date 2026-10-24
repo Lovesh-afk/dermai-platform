@@ -8,6 +8,7 @@ from datetime import datetime, timedelta, timezone
 import pytest
 
 from tests.conftest import slot_at
+from app.models.user import User
 
 from app.core.exceptions import AlreadyExistsError, NotFoundError
 from app.models.appointment import AppointmentStatus
@@ -169,7 +170,7 @@ def test_cancel_appointment_frees_the_slot(db_session):
     slot = slot_at(days_ahead=3)
 
     appointment = appointment_service.book_appointment(db_session, patient, AppointmentCreate(doctor_id=str(doctor.id), scheduled_at=slot))
-    appointment_service.cancel_appointment(db_session, appointment.id, "Patient rescheduled", patient.user_id)
+    appointment_service.cancel_appointment(db_session, appointment.id, "Patient rescheduled", db_session.get(User, patient.user_id))
 
     # Same slot should now be bookable again since the prior one is cancelled
     new_appointment = appointment_service.book_appointment(db_session, patient, AppointmentCreate(doctor_id=str(doctor.id), scheduled_at=slot))

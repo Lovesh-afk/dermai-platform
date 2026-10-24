@@ -70,6 +70,21 @@ services:
       retries: 3
       start_period: 30s
 
+  # Runs scheduled jobs (appointment reminders every 10 min) by putting
+  # them on the queue for celery_worker. Must be exactly ONE of these,
+  # or every reminder would be sent once per beat container.
+  celery_beat:
+    build:
+      context: ./backend
+    restart: unless-stopped
+    command: celery -A app.tasks.celery_app beat --loglevel=info --schedule /tmp/celerybeat-schedule
+    env_file:
+      - ./backend/.env
+    depends_on:
+      - rabbitmq
+    healthcheck:
+      disable: true  # beat serves no web page, so the image's HTTP check doesn't apply
+
   inference:
     build:
       context: ./ai
