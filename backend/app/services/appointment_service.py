@@ -1,16 +1,19 @@
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.core.exceptions import AppError, NotFoundError, PermissionDeniedError
 from app.models.appointment import Appointment, AppointmentStatus
 from app.models.doctor import Doctor
 from app.models.patient import Patient
 from app.schemas.appointment import AppointmentCreate
 from app.services import notification_service, scheduling_service
+from app.services.payments import payment_service
+from app.services.payments.providers import PaymentProviderError
 from app.services.audit_service import log_audit_event
 
 
@@ -24,6 +27,10 @@ class SlotConflictError(AppError):
 
 class SlotUnavailableError(AppError):
     """Outside working hours, misaligned, or in the past."""
+
+
+class PaymentUnavailableError(AppError):
+    """The payment provider couldn't create an order; the slot was released."""
 
 
 class NotCancellableError(AppError):
@@ -40,6 +47,7 @@ def book_appointment(db: Session, patient: Patient, payload: AppointmentCreate) 
 
     # Always store UTC, whatever offset the client sent
     scheduled_at = scheduling_service._utc(payload.scheduled_at)
+    payment_service.expire_unpaid_holds(db)  # an expired hold must not block this slot
 
     problem = scheduling_service.booking_problem(db, doctor, scheduled_at)
     if problem:
@@ -48,13 +56,15 @@ def book_appointment(db: Session, patient: Patient, payload: AppointmentCreate) 
     if _slot_is_taken(db, doctor_id, scheduled_at):
         raise SlotConflictError("Sorry, that slot was just booked. Please choose another time.")
 
+    fee = payment_service.fee_in_paise(doctor)
     appointment = Appointment(
         hospital_id=doctor.hospital_id,
         patient_id=patient.id,
         doctor_id=doctor_id,
         scheduled_at=scheduled_at,
         reason=payload.reason,
-        status=AppointmentStatus.PENDING,
+        status=AppointmentStatus.AWAITING_PAYMENT if fee else AppointmentStatus.PENDING,
+        hold_expires_at=datetime.now(timezone.utc) + timedelta(minutes=settings.PAYMENT_HOLD_MINUTES) if fee else None,
     )
     db.add(appointment)
     try:
@@ -70,7 +80,20 @@ def book_appointment(db: Session, patient: Patient, payload: AppointmentCreate) 
         db, action="appointment.book", user_id=patient.user_id, hospital_id=doctor.hospital_id,
         resource_type="Appointment", resource_id=str(appointment.id),
     )
-    notification_service.appointment_booked(db, appointment)
+    if not fee:
+        notification_service.appointment_booked(db, appointment)
+        return appointment
+
+    # Paid consultation: the doctor is only notified once payment succeeds
+    try:
+        payment_service.start_payment(db, appointment, fee)
+    except PaymentProviderError as e:
+        appointment.status = AppointmentStatus.CANCELLED  # release the slot straight away
+        appointment.cancellation_reason = "Payment service unavailable"
+        appointment.hold_expires_at = None
+        db.commit()
+        raise PaymentUnavailableError("We couldn't start the payment. Please try again in a moment.") from e
+    db.refresh(appointment)
     return appointment
 
 
@@ -100,17 +123,22 @@ def cancel_appointment(db: Session, appointment_id: uuid.UUID, cancellation_reas
     if appointment.status not in scheduling_service.ACTIVE_STATUSES:
         raise NotCancellableError(f"A {appointment.status.value.replace('_', ' ')} appointment can't be cancelled.")
 
+    was_unpaid_hold = appointment.status == AppointmentStatus.AWAITING_PAYMENT
     appointment.status = AppointmentStatus.CANCELLED
     appointment.cancellation_reason = cancellation_reason
+    appointment.hold_expires_at = None
     db.add(appointment)
     db.commit()
     db.refresh(appointment)
+    payment_service.handle_cancellation(db, appointment, cancelling_user)
 
     log_audit_event(
         db, action="appointment.cancel", user_id=cancelling_user.id, hospital_id=appointment.hospital_id,
         resource_type="Appointment", resource_id=str(appointment.id),
     )
-    notification_service.appointment_cancelled(db, appointment, cancelling_user)
+    if not was_unpaid_hold:  # the doctor never saw an unpaid hold, so there's no one to tell
+        notification_service.appointment_cancelled(db, appointment, cancelling_user)
+    db.refresh(appointment)
     return appointment
 
 
@@ -119,7 +147,10 @@ def list_appointments_for_patient(db: Session, patient_id: uuid.UUID) -> list[Ap
 
 
 def list_appointments_for_doctor(db: Session, doctor_id: uuid.UUID) -> list[Appointment]:
-    return list(db.execute(select(Appointment).where(Appointment.doctor_id == doctor_id)).scalars().all())
+    """Unpaid holds aren't real requests yet, so doctors don't see them."""
+    return list(db.execute(select(Appointment).where(
+        Appointment.doctor_id == doctor_id, Appointment.status != AppointmentStatus.AWAITING_PAYMENT
+    )).scalars().all())
 
 
 def update_appointment_status(db: Session, appointment_id: uuid.UUID, new_status: AppointmentStatus, doctor: Doctor) -> Appointment:
@@ -131,6 +162,8 @@ def update_appointment_status(db: Session, appointment_id: uuid.UUID, new_status
         raise NotFoundError("Appointment not found")
     if appointment.doctor_id != doctor.id:
         raise PermissionDeniedError("This appointment does not belong to you")
+    if appointment.status == AppointmentStatus.AWAITING_PAYMENT:
+        raise NotCancellableError("This booking hasn't been paid yet.")
 
     appointment.status = new_status
     db.add(appointment)

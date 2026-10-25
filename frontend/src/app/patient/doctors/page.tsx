@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { hospitalApi, doctorApi, appointmentApi, patientApi, HospitalOut, DoctorProfile, ApiError, Condition, Recommendations, DoctorSlots } from "@/lib/api";
+import { hospitalApi, doctorApi, appointmentApi, patientApi, HospitalOut, DoctorProfile, ApiError, Condition, Recommendations, DoctorSlots, formatINR } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
+import { PaymentCheckout } from "@/components/PaymentCheckout";
 import { Card, Button, Select, Field, Input, Alert, Spinner, EmptyState } from "@/components/ui";
 
 export default function FindDoctorPage() {
@@ -105,6 +106,8 @@ function BookingModal({ doctor, token, onClose }: { doctor: DoctorProfile; token
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [paymentId, setPaymentId] = useState<string | null>(null); // set when the booking needs paying
+  const feePaise = doctor.consultation_fee ? Math.round(Number(doctor.consultation_fee) * 100) : 0;
 
   function loadSlots() {
     doctorApi
@@ -125,8 +128,10 @@ function BookingModal({ doctor, token, onClose }: { doctor: DoctorProfile; token
     setSubmitting(true);
     setError(null);
     try {
-      await appointmentApi.book(token, { doctor_id: doctor.id, scheduled_at: selected, reason: reason || undefined });
-      setSuccess(true);
+      const appt = await appointmentApi.book(token, { doctor_id: doctor.id, scheduled_at: selected, reason: reason || undefined });
+      // Paid consultation: the slot is held while the patient pays
+      if (appt.status === "awaiting_payment" && appt.payment) setPaymentId(appt.payment.id);
+      else setSuccess(true);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Couldn't book that slot.");
       // Most likely someone else just took it: refresh so it disappears
@@ -144,9 +149,19 @@ function BookingModal({ doctor, token, onClose }: { doctor: DoctorProfile; token
           {success ? (
             <>
               <p className="font-display text-xl text-ink">Booked</p>
-              <p className="mt-1 text-sm text-ink-soft">Your appointment request has been sent. You&rsquo;ll see it in your appointments list.</p>
+              <p className="mt-1 text-sm text-ink-soft">
+                {feePaise ? "Payment received. " : ""}Your appointment request has been sent. You&rsquo;ll see it in your appointments list.
+              </p>
               <Button className="mt-4 w-full" onClick={onClose}>Done</Button>
             </>
+          ) : paymentId ? (
+            <div className="flex flex-col gap-4">
+              <p className="font-display text-xl text-ink">Pay to confirm your booking</p>
+              <PaymentCheckout paymentId={paymentId} onPaid={() => setSuccess(true)} />
+              <p className="text-xs text-ink-soft">
+                Closing this keeps your slot held for a few minutes. You can finish paying from Appointments.
+              </p>
+            </div>
           ) : (
             <form onSubmit={handleSubmit} className="flex flex-col gap-4">
               <div>
@@ -196,6 +211,12 @@ function BookingModal({ doctor, token, onClose }: { doctor: DoctorProfile; token
                 </>
               )}
 
+              {feePaise > 0 && (
+                <p className="rounded-lg bg-sage-50 px-3 py-2 text-sm text-ink">
+                  Consultation fee: <strong>{formatINR(feePaise)}</strong>, paid now to confirm your booking.
+                  Full refund if you cancel at least 24 hours ahead or the doctor cancels.
+                </p>
+              )}
               <Field label="Reason (optional)">
                 <Input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="e.g. Suspicious mole" />
               </Field>
@@ -203,7 +224,7 @@ function BookingModal({ doctor, token, onClose }: { doctor: DoctorProfile; token
               <div className="flex gap-2">
                 <Button type="button" variant="secondary" className="flex-1" onClick={onClose}>Cancel</Button>
                 <Button type="submit" disabled={submitting || !selected} className="flex-1">
-                  {submitting ? "Booking…" : "Book"}
+                  {submitting ? "Booking…" : feePaise ? "Continue to payment" : "Book"}
                 </Button>
               </div>
             </form>
@@ -287,7 +308,7 @@ function RecommendedDoctors({ token, onBook }: { token: string; onBook: (d: Doct
       ) : !data || data.doctors.length === 0 ? (
         <p className="text-sm text-ink-soft">No doctors are available to recommend right now.</p>
       ) : (
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {data.doctors.slice(0, 3).map((rec, i) => (
             <Card key={rec.doctor.id}>
               {i === 0 && <p className="mb-1 text-xs font-medium uppercase tracking-wide text-pine-700">Best match</p>}
@@ -302,7 +323,7 @@ function RecommendedDoctors({ token, onBook }: { token: string; onBook: (d: Doct
                 ))}
               </ul>
               {rec.doctor.consultation_fee != null && (
-                <p className="mt-2 text-sm text-ink-soft">Fee: {rec.doctor.consultation_fee}</p>
+                <p className="mt-2 text-sm text-ink-soft">Fee: {formatINR(Math.round(Number(rec.doctor.consultation_fee) * 100))}</p>
               )}
               <Button size="sm" className="mt-4" onClick={() => onBook(rec.doctor)}>Book appointment</Button>
             </Card>

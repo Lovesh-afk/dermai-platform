@@ -48,6 +48,14 @@ class Settings(BaseSettings):
     # Base URL of the website, used for links inside emails
     FRONTEND_URL: str = "http://localhost:3000"
 
+    # Payments (Phase 13). With no Razorpay keys, a simulated checkout is
+    # used so the whole flow works with no account. Test keys start rzp_test_.
+    RAZORPAY_KEY_ID: str = ""
+    RAZORPAY_KEY_SECRET: str = ""
+    RAZORPAY_WEBHOOK_SECRET: str = ""
+    PAYMENT_HOLD_MINUTES: int = 15   # unpaid bookings free their slot after this
+    REFUND_CUTOFF_HOURS: int = 24    # patient cancels at least this early = full refund
+
     AWS_ACCESS_KEY_ID: str = ""
     AWS_SECRET_ACCESS_KEY: str = ""
     AWS_S3_BUCKET: str = ""

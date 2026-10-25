@@ -153,7 +153,9 @@ export interface DoctorProfile {
   is_accepting_appointments: boolean;
 }
 
-export type AppointmentStatus = "pending" | "confirmed" | "completed" | "cancelled" | "no_show";
+export type AppointmentStatus = "awaiting_payment" | "pending" | "confirmed" | "completed" | "cancelled" | "no_show";
+
+export type PaymentStatus = "created" | "paid" | "failed" | "expired" | "refunded" | "refund_failed";
 
 export interface Appointment {
   id: string;
@@ -164,6 +166,8 @@ export interface Appointment {
   status: AppointmentStatus;
   reason: string | null;
   cancellation_reason: string | null;
+  hold_expires_at: string | null; // while awaiting payment
+  payment: { id: string; status: PaymentStatus; amount_paise: number; currency: string; provider: string } | null;
 }
 
 export interface MedicalRecord {
@@ -491,6 +495,51 @@ export const notificationApi = {
   markRead: (token: string, id: string) => authed<AppNotification>(`/notifications/${id}/read`, token, { method: "POST" }),
   markAllRead: (token: string) => authed<void>("/notifications/read-all", token, { method: "POST" }),
 };
+
+// ---------------------------------------------------------------------------
+// Payments (Phase 13)
+// ---------------------------------------------------------------------------
+
+export interface Checkout {
+  payment_id: string;
+  provider: "razorpay" | "simulated";
+  key_id: string | null; // Razorpay PUBLIC key; the secret never reaches the browser
+  order_id: string;
+  amount_paise: number;
+  currency: string;
+  expires_at: string | null;
+  description: string;
+}
+
+export interface PaymentRecord {
+  id: string;
+  appointment_id: string;
+  amount_paise: number;
+  currency: string;
+  status: PaymentStatus;
+  provider: string;
+  paid_at: string | null;
+  refunded_at: string | null;
+  note: string | null;
+  created_at: string;
+  doctor_name: string | null;
+  appointment_time: string | null;
+}
+
+export const paymentApi = {
+  checkout: (token: string, paymentId: string) => authed<Checkout>(`/payments/${paymentId}/checkout`, token),
+  verify: (token: string, paymentId: string, body: { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string }) =>
+    authed<PaymentRecord>(`/payments/${paymentId}/verify`, token, { method: "POST", body: JSON.stringify(body) }),
+  simulate: (token: string, paymentId: string, outcome: "success" | "failure") =>
+    authed<PaymentRecord>(`/payments/${paymentId}/simulate`, token, { method: "POST", body: JSON.stringify({ outcome }) }),
+  mine: (token: string) => authed<PaymentRecord[]>("/patients/me/payments", token),
+};
+
+/** Paise -> "₹500" / "₹499.99". Money travels as integer paise end to end. */
+export function formatINR(paise: number): string {
+  const rupees = paise / 100;
+  return `₹${rupees.toLocaleString("en-IN", { minimumFractionDigits: rupees % 1 ? 2 : 0, maximumFractionDigits: 2 })}`;
+}
 
 export function fileUrl(path: string): string {
   return path.startsWith("http") ? path : `${API_URL}${path}`;

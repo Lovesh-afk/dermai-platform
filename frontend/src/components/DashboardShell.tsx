@@ -14,49 +14,55 @@ interface NavItem {
 
 const icons = {
   home: (
-    <svg viewBox="0 0 20 20" fill="none" className="h-4.5 w-4.5">
+    <svg viewBox="0 0 20 20" fill="none" className="h-5 w-5">
       <path d="M3 9.5 10 3l7 6.5M5 8v8h10V8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   ),
   calendar: (
-    <svg viewBox="0 0 20 20" fill="none" className="h-4.5 w-4.5">
+    <svg viewBox="0 0 20 20" fill="none" className="h-5 w-5">
       <rect x="3" y="4.5" width="14" height="12" rx="2" stroke="currentColor" strokeWidth="1.6" />
       <path d="M3 8.5h14M7 3v3M13 3v3" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
     </svg>
   ),
   users: (
-    <svg viewBox="0 0 20 20" fill="none" className="h-4.5 w-4.5">
+    <svg viewBox="0 0 20 20" fill="none" className="h-5 w-5">
       <circle cx="7" cy="7" r="2.6" stroke="currentColor" strokeWidth="1.6" />
       <path d="M2.5 16c.6-2.8 2.4-4.3 4.5-4.3s3.9 1.5 4.5 4.3M13 8.2A2.4 2.4 0 1 0 13 3.4M14.5 11.9c1.8.4 3 1.7 3.5 4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
     </svg>
   ),
   file: (
-    <svg viewBox="0 0 20 20" fill="none" className="h-4.5 w-4.5">
+    <svg viewBox="0 0 20 20" fill="none" className="h-5 w-5">
       <path d="M6 2.5h6l3 3V16a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V3.5a1 1 0 0 1 1-1Z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
       <path d="M7.5 9h5M7.5 12h5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
     </svg>
   ),
   image: (
-    <svg viewBox="0 0 20 20" fill="none" className="h-4.5 w-4.5">
+    <svg viewBox="0 0 20 20" fill="none" className="h-5 w-5">
       <rect x="2.5" y="4" width="15" height="12" rx="2" stroke="currentColor" strokeWidth="1.6" />
       <circle cx="7" cy="8.5" r="1.4" stroke="currentColor" strokeWidth="1.6" />
       <path d="M4 15l4-4 2.5 2.5L14 10l3 3" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
     </svg>
   ),
   user: (
-    <svg viewBox="0 0 20 20" fill="none" className="h-4.5 w-4.5">
+    <svg viewBox="0 0 20 20" fill="none" className="h-5 w-5">
       <circle cx="10" cy="7" r="3" stroke="currentColor" strokeWidth="1.6" />
       <path d="M3.5 17c.9-3.6 3.3-5.5 6.5-5.5s5.6 1.9 6.5 5.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
     </svg>
   ),
   chat: (
-    <svg viewBox="0 0 20 20" fill="none" className="h-4.5 w-4.5">
+    <svg viewBox="0 0 20 20" fill="none" className="h-5 w-5">
       <path d="M4 4.5h12a1 1 0 0 1 1 1v7.5a1 1 0 0 1-1 1H8.5L5 17v-3H4a1 1 0 0 1-1-1V5.5a1 1 0 0 1 1-1Z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
       <path d="M6.5 8.5h7M6.5 11h4.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
     </svg>
   ),
+  wallet: (
+    <svg viewBox="0 0 20 20" fill="none" className="h-5 w-5">
+      <rect x="2.5" y="5" width="15" height="11" rx="2" stroke="currentColor" strokeWidth="1.6" />
+      <path d="M2.5 8.5h15M13 12h1.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+    </svg>
+  ),
   building: (
-    <svg viewBox="0 0 20 20" fill="none" className="h-4.5 w-4.5">
+    <svg viewBox="0 0 20 20" fill="none" className="h-5 w-5">
       <rect x="4" y="2.5" width="9" height="15" rx="1" stroke="currentColor" strokeWidth="1.6" />
       <path d="M13 8h2.5a1 1 0 0 1 1 1v7.5H13M6.5 5.5h1M9.5 5.5h1M6.5 8.5h1M9.5 8.5h1M6.5 11.5h1M9.5 11.5h1M7 17.5v-3h2v3" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
     </svg>

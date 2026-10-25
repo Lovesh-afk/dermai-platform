@@ -70,6 +70,7 @@ export function Card({ children, className = "" }: { children: ReactNode; classN
 // ---------------------------------------------------------------------------
 
 const STATUS_STYLES: Record<string, { bar: string; badge: string; label: string }> = {
+  awaiting_payment: { bar: "bg-ochre-300", badge: "bg-ochre-50 text-ochre-700", label: "Awaiting payment" },
   pending: { bar: "bg-ochre-400", badge: "bg-ochre-50 text-ochre-700", label: "Pending" },
   confirmed: { bar: "bg-pine-500", badge: "bg-pine-50 text-pine-700", label: "Confirmed" },
   completed: { bar: "bg-pine-700", badge: "bg-pine-100 text-pine-800", label: "Completed" },

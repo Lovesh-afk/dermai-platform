@@ -4,14 +4,16 @@ import { useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth";
 import { useAuthedData } from "@/lib/useAuthedData";
-import { patientApi, appointmentApi, ApiError } from "@/lib/api";
-import { VitalCard, StatusPill, Spinner, EmptyState, Button, Alert } from "@/components/ui";
+import { patientApi, appointmentApi, ApiError, formatINR } from "@/lib/api";
+import { VitalCard, StatusPill, Spinner, EmptyState, Button, Alert, Card } from "@/components/ui";
+import { PaymentCheckout } from "@/components/PaymentCheckout";
 
 export default function PatientAppointmentsPage() {
   const { accessToken } = useAuth();
   const { data: appointments, loading, refetch } = useAuthedData((t) => patientApi.myAppointments(t));
   const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [payingId, setPayingId] = useState<string | null>(null); // payment being completed
 
   async function handleCancel(id: string) {
     if (!accessToken) return;
@@ -55,10 +57,19 @@ export default function PatientAppointmentsPage() {
                   <p className="font-medium text-ink">{new Date(a.scheduled_at).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}</p>
                   {a.reason && <p className="mt-0.5 text-sm text-ink-soft">{a.reason}</p>}
                   {a.cancellation_reason && <p className="mt-0.5 text-sm text-alert">Cancelled: {a.cancellation_reason}</p>}
+                  {a.status === "awaiting_payment" && a.hold_expires_at && (
+                    <p className="mt-0.5 text-sm text-ochre-700">
+                      Pay {a.payment ? formatINR(a.payment.amount_paise) : ""} by{" "}
+                      {new Date(a.hold_expires_at).toLocaleTimeString(undefined, { timeStyle: "short" })} to keep this slot.
+                    </p>
+                  )}
                 </div>
                 <div className="flex items-center gap-3">
                   <StatusPill status={a.status} />
-                  {(a.status === "pending" || a.status === "confirmed") && (
+                  {a.status === "awaiting_payment" && a.payment && (
+                    <Button size="sm" onClick={() => setPayingId(a.payment!.id)}>Complete payment</Button>
+                  )}
+                  {(a.status === "awaiting_payment" || a.status === "pending" || a.status === "confirmed") && (
                     <Button variant="ghost" size="sm" disabled={cancellingId === a.id} onClick={() => handleCancel(a.id)}>
                       {cancellingId === a.id ? "Cancelling…" : "Cancel"}
                     </Button>
@@ -67,6 +78,18 @@ export default function PatientAppointmentsPage() {
               </div>
             </VitalCard>
           ))}
+        </div>
+      )}
+
+      {payingId && (
+        <div className="fixed inset-0 z-10 flex items-center justify-center bg-ink/30 px-6" onClick={() => setPayingId(null)}>
+          <Card className="w-full max-w-md">
+            <div onClick={(e) => e.stopPropagation()} className="flex flex-col gap-4">
+              <p className="font-display text-xl text-ink">Complete payment</p>
+              <PaymentCheckout paymentId={payingId} onPaid={() => { setPayingId(null); refetch(); }} />
+              <Button variant="secondary" onClick={() => setPayingId(null)}>Close</Button>
+            </div>
+          </Card>
         </div>
       )}
     </div>

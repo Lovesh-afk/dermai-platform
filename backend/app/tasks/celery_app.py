@@ -27,5 +27,9 @@ celery_app.conf.update(
             "task": "notifications.send_appointment_reminders",
             "schedule": 600.0,  # every 10 minutes
         },
+        "expire-unpaid-bookings": {
+            "task": "payments.expire_unpaid_holds",
+            "schedule": 120.0,  # every 2 minutes: frees slots held by abandoned checkouts
+        },
     },
 )

@@ -13,6 +13,7 @@ const navItems = [
   { href: "/patient/appointments", label: "Appointments", icon: icons.calendar },
   { href: "/patient/images", label: "Skin photos", icon: icons.image },
   { href: "/patient/chat", label: "Ask DermAI", icon: icons.chat },
+  { href: "/patient/payments", label: "Payments", icon: icons.wallet },
   { href: "/patient/records", label: "Medical records", icon: icons.file },
   { href: "/patient/profile", label: "My profile", icon: icons.user },
 ];

@@ -16,6 +16,7 @@ from app.models.user import User
 from app.schemas.appointment import AppointmentOut
 from app.schemas.medical_record import MedicalRecordOut
 from app.schemas.patient import PatientProfileCreate, PatientProfileOut, PatientProfileUpdate
+from app.schemas.payment import PaymentOut
 from app.schemas.recommendation import Condition, RecommendationsOut
 from app.schemas.skin_image import SkinImageOut
 from app.services import appointment_service, patient_service, prediction_service, recommendation_service, skin_image_service
@@ -121,6 +122,15 @@ def get_recommended_doctors(
         condition_source=source,
         doctors=[{"doctor": r.doctor, "hospital_name": r.hospital_name, "score": r.score, "reasons": r.reasons} for r in recs],
     )
+
+
+@router.get("/me/payments", response_model=list[PaymentOut])
+def get_my_payments(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    from app.api.v1.endpoints.payments import _out
+    from app.services.payments import payment_service
+
+    patient = _require_patient_profile(db, current_user)
+    return [_out(db, p) for p in payment_service.list_for_patient(db, patient)]
 
 
 def _require_patient_profile(db: Session, user: User):

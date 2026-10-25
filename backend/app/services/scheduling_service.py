@@ -25,7 +25,8 @@ MAX_SLOT_DAYS = 31                     # how far ahead the slots endpoint will l
 # Used until a doctor sets their own hours: Monday-Friday, 09:00-17:00.
 DEFAULT_WEEKLY_HOURS = [(weekday, time(9, 0), time(17, 0)) for weekday in range(5)]
 
-ACTIVE_STATUSES = (AppointmentStatus.PENDING, AppointmentStatus.CONFIRMED)
+# Statuses that occupy a slot. An unpaid hold counts until it expires.
+ACTIVE_STATUSES = (AppointmentStatus.AWAITING_PAYMENT, AppointmentStatus.PENDING, AppointmentStatus.CONFIRMED)
 
 
 def _utc(dt: datetime) -> datetime:
@@ -79,6 +80,9 @@ def _slot_starts_on(local_date: date, blocks, zone: ZoneInfo):
 def available_slots(db: Session, doctor: Doctor, days: int) -> list[tuple[date, list[datetime]]]:
     """Open slots for the next `days` days, grouped by local date.
     Each slot is a timezone-aware datetime in the hospital's zone."""
+    from app.services.payments.payment_service import expire_unpaid_holds
+
+    expire_unpaid_holds(db)  # expired unpaid holds must show as free slots
     zone = hospital_zone(db, doctor)
     blocks, _ = get_weekly_hours(db, doctor)
     taken = _taken_starts(db, doctor)

@@ -12,7 +12,7 @@ from app.db.session import get_db
 from app.models.user import User
 from app.schemas.appointment import AppointmentCancel, AppointmentCreate, AppointmentOut, AppointmentStatusUpdate
 from app.services import appointment_service, doctor_service, patient_service
-from app.services.appointment_service import DoctorUnavailableError, NotCancellableError, SlotConflictError, SlotUnavailableError
+from app.services.appointment_service import DoctorUnavailableError, NotCancellableError, PaymentUnavailableError, SlotConflictError, SlotUnavailableError
 
 router = APIRouter(prefix="/appointments", tags=["appointments"])
 
@@ -32,6 +32,8 @@ def book_appointment(payload: AppointmentCreate, current_user: User = Depends(ge
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except SlotConflictError as e:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
+    except PaymentUnavailableError as e:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(e))
 
 
 @router.post("/{appointment_id}/cancel", response_model=AppointmentOut)
@@ -59,3 +61,5 @@ def update_appointment_status(appointment_id: str, payload: AppointmentStatusUpd
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
     except PermissionDeniedError as e:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
+    except NotCancellableError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))

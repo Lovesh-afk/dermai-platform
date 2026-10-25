@@ -21,3 +21,14 @@ def send_appointment_reminders() -> int:
         return notification_service.send_due_reminders(db)
     finally:
         db.close()
+
+
+@celery_app.task(name="payments.expire_unpaid_holds")
+def expire_unpaid_holds() -> int:
+    from app.services.payments.payment_service import expire_unpaid_holds as expire
+
+    db = SessionLocal()
+    try:
+        return expire(db)
+    finally:
+        db.close()
