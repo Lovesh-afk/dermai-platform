@@ -541,6 +541,30 @@ export function formatINR(paise: number): string {
   return `₹${rupees.toLocaleString("en-IN", { minimumFractionDigits: rupees % 1 ? 2 : 0, maximumFractionDigits: 2 })}`;
 }
 
+// ---------------------------------------------------------------------------
+// Analytics (Phase 14)
+// ---------------------------------------------------------------------------
+
+export interface Analytics {
+  scope: "hospital" | "platform";
+  period_days: number;
+  start: string;
+  end: string;
+  timezone: string;
+  totals: { appointments: number; completed: number; cancelled: number; no_show: number; upcoming_7d: number; active_patients: number; abandoned_checkouts: number };
+  rates: { no_show_rate: number | null; cancellation_rate: number | null; checkout_conversion: number | null };
+  revenue: { gross_paise: number; refunded_paise: number; net_paise: number; paid_count: number; refund_count: number };
+  daily: { date: string; appointments: number; completed: number; cancelled: number; no_show: number; revenue_paise: number }[];
+  doctors: { doctor_id: string; name: string | null; appointments: number; completed: number; no_show: number; cancelled: number; net_revenue_paise: number; no_show_rate: number | null }[];
+  ai: { photos_uploaded: number; analyzed: number; failed: number; by_class: Record<string, number> };
+  hospitals: { hospital_id: string; name: string; doctors: number; appointments: number; completed: number; net_revenue_paise: number }[];
+}
+
+export const analyticsApi = {
+  hospital: (token: string, days: number) => authed<Analytics>(`/admin/hospital/analytics?days=${days}`, token),
+  platform: (token: string, days: number) => authed<Analytics>(`/admin/platform/analytics?days=${days}`, token),
+};
+
 export function fileUrl(path: string): string {
   return path.startsWith("http") ? path : `${API_URL}${path}`;
 }

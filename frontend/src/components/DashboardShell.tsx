@@ -61,6 +61,11 @@ const icons = {
       <path d="M2.5 8.5h15M13 12h1.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
     </svg>
   ),
+  chart: (
+    <svg viewBox="0 0 20 20" fill="none" className="h-5 w-5">
+      <path d="M3 16.5h14M5.5 13.5v-4M10 13.5V5.5M14.5 13.5v-6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+    </svg>
+  ),
   building: (
     <svg viewBox="0 0 20 20" fill="none" className="h-5 w-5">
       <rect x="4" y="2.5" width="9" height="15" rx="1" stroke="currentColor" strokeWidth="1.6" />

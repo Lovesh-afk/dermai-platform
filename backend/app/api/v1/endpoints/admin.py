@@ -7,7 +7,7 @@
 """
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Query, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_user, require_role
@@ -16,8 +16,9 @@ from app.db.session import get_db
 from app.models.role import Role
 from app.models.user import User
 from app.schemas.admin import HospitalStatsOut, PlatformStatsOut, PromoteToHospitalAdminRequest, StaffMemberOut
+from app.schemas.analytics import AnalyticsOut
 from app.schemas.hospital import HospitalCreate, HospitalOut, HospitalUpdate
-from app.services import admin_service, hospital_service
+from app.services import admin_service, analytics_service, hospital_service
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -59,12 +60,23 @@ def promote_hospital_admin(hospital_id: str, payload: PromoteToHospitalAdminRequ
     return _to_staff_out(db, user)
 
 
+@router.get("/platform/analytics", response_model=AnalyticsOut)
+def platform_analytics(days: int = Query(30, ge=1, le=365), current_user: User = Depends(require_role("SUPER_ADMIN")), db: Session = Depends(get_db)):
+    return analytics_service.platform_analytics(db, days)
+
+
 # --- Own-hospital scope (SUPER_ADMIN or HOSPITAL_ADMIN) ---
 
 @router.get("/hospital/stats", response_model=HospitalStatsOut)
 def my_hospital_stats(current_user: User = Depends(require_role("SUPER_ADMIN", "HOSPITAL_ADMIN")), db: Session = Depends(get_db)):
     hospital_id = _resolve_admin_hospital_id(current_user)
     return admin_service.get_hospital_stats(db, hospital_id)
+
+
+@router.get("/hospital/analytics", response_model=AnalyticsOut)
+def my_hospital_analytics(days: int = Query(30, ge=1, le=365), current_user: User = Depends(require_role("SUPER_ADMIN", "HOSPITAL_ADMIN")), db: Session = Depends(get_db)):
+    hospital_id = _resolve_admin_hospital_id(current_user)
+    return analytics_service.hospital_analytics(db, hospital_id, days)
 
 
 @router.get("/hospital/staff", response_model=list[StaffMemberOut])

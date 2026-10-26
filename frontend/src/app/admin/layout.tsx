@@ -37,10 +37,12 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
       ? [
           { href: "/admin", label: "Overview", icon: icons.home },
           { href: "/admin/hospitals", label: "Hospitals", icon: icons.building },
+          { href: "/admin/analytics", label: "Analytics", icon: icons.chart },
         ]
       : [
           { href: "/admin", label: "Overview", icon: icons.home },
           { href: "/admin/staff", label: "Staff", icon: icons.users },
+          { href: "/admin/analytics", label: "Analytics", icon: icons.chart },
         ];
 
   return <DashboardShell navItems={navItems}>{children}</DashboardShell>;
