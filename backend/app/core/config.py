@@ -34,7 +34,10 @@ class Settings(BaseSettings):
     # Chatbot (Phase 9). Leave GEMINI_API_KEY empty to run the chatbot in
     # knowledge-base-only mode; set it in .env to enable AI answers.
     GEMINI_API_KEY: str = ""
-    GEMINI_MODEL: str = "gemini-2.5-flash"
+    # "gemini-flash-latest" is Google's alias for its current Flash model, so a
+    # model retirement can't break the chatbot (gemini-2.5-flash was shut down
+    # on 16 Oct 2026). Pin a specific name here only if you need to.
+    GEMINI_MODEL: str = "gemini-flash-latest"
     LLM_TIMEOUT_SECONDS: float = 30.0
 
     # Email (Phase 12). With SMTP_HOST empty, emails are written to the

@@ -44,7 +44,10 @@ class GeminiProvider:
                 {"role": "model" if m["role"] == "assistant" else "user", "parts": [{"text": m["content"]}]}
                 for m in messages
             ],
-            "generationConfig": {"temperature": 0.3, "maxOutputTokens": 700},
+            # Newer Gemini models "think" first, and those thinking tokens count toward
+            # maxOutputTokens; too low a limit can leave no room for the answer itself.
+            # Answer length is controlled by the prompt (under 180 words) instead.
+            "generationConfig": {"temperature": 0.3, "maxOutputTokens": 4096},
         }
         try:
             resp = httpx.post(
